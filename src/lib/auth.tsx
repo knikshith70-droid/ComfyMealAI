@@ -37,15 +37,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    // Use onAuthStateChange exclusively. INITIAL_SESSION fires immediately with
-    // the current session (or null), so we don't need a separate getSession call.
+    // Only react to explicit auth transitions. Supabase also emits
+    // TOKEN_REFRESHED when the tab regains focus (autoRefreshToken); treating
+    // that as a state change would yank a user off the auth screen just for
+    // switching tabs. We ignore passive refresh events and only act on
+    // INITIAL_SESSION (initial load), SIGNED_IN, and SIGNED_OUT.
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
+      if (event !== "INITIAL_SESSION" && event !== "SIGNED_IN" && event !== "SIGNED_OUT") {
+        return;
+      }
       const u = session?.user ?? null;
       setUser(u);
       if (u) {
         loadProfile(u).finally(() => {
-          // Only clear the loading spinner after the initial session check.
           if (event === "INITIAL_SESSION" && mounted) setLoading(false);
         });
       } else {
