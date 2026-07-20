@@ -3,14 +3,14 @@ import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 import { fetchPantry, fetchRecentHistory, fetchLatestSession } from "../lib/api";
 import type { NutritionHistoryEntry, PantryItem } from "../lib/supabase";
-import { type Page } from "../lib/nav";
+import { type Page, type PendingAction } from "../lib/nav";
 import {
   Flame, Sparkles, Clock, Utensils, History, ChevronRight, CalendarRange,
   Loader2, AlertCircle, Bookmark,
 } from "lucide-react";
 
 interface Props {
-  onNavigate: (page: Page) => void;
+  onNavigate: (page: Page, action?: PendingAction) => void;
 }
 
 function getGreeting(t: (k: string) => string) {
@@ -114,7 +114,7 @@ export function DashboardPage({ onNavigate }: Props) {
         />
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-5">
+      <div className="space-y-5">
         {useSoon.length > 0 && (
           <section className="card p-5 sm:p-6">
             <div className="flex items-center gap-2 mb-1">
@@ -144,16 +144,16 @@ export function DashboardPage({ onNavigate }: Props) {
         )}
 
         {hasYesterday && (
-          <section className="card p-5 sm:p-6 flex flex-col gap-3">
+          <section className="card p-5 sm:p-6">
             <div className="flex items-center gap-2 mb-1">
               <History className="h-5 w-5 text-sage-700" />
               <h2 className="font-serif text-xl">{t("quickStart")}</h2>
             </div>
-            <p className="muted text-sm">{t("quickStartDesc")}</p>
+            <p className="muted text-sm mb-4">{t("quickStartDesc")}</p>
             <button
               type="button"
-              onClick={() => onNavigate("generate")}
-              className="btn-secondary w-full mt-auto"
+              onClick={() => onNavigate("generate", "same-as-yesterday")}
+              className="btn-secondary w-full"
             >
               <History className="h-4 w-4" /> {t("sameAsYesterday")}
             </button>

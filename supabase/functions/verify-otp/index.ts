@@ -73,7 +73,9 @@ Deno.serve(async (req: Request) => {
     }
 
     // generateLink creates the user if they don't exist and issues a one-time
-    // magic-link token we can immediately exchange for a real session.
+    // magic-link token we can immediately exchange for a real session. For
+    // users created via signup-with-otp (already exists, email unconfirmed),
+    // we confirm the email first so the link succeeds.
     const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
       type: "magiclink",
       email: normalized,
@@ -81,6 +83,12 @@ Deno.serve(async (req: Request) => {
 
     if (linkError || !linkData?.properties?.hashed_token) {
       throw new Error(`Failed to issue session token: ${linkError?.message ?? "no token returned"}`);
+    }
+
+    // If the user existed but was unconfirmed (signup flow), mark confirmed.
+    const linkUser = linkData.user;
+    if (linkUser && !linkUser.email_confirmed_at) {
+      await admin.auth.admin.updateUserById(linkUser.id, { email_confirm: true });
     }
 
     // Exchange the magic-link token for a real access + refresh token pair.

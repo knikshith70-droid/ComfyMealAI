@@ -21,7 +21,7 @@ interface Props {
 export function AppShell({ profile }: Props) {
   const { user } = useAuth();
   const { t, lang, setLang } = useI18n();
-  const { page, navigate } = useNav();
+  const { page, navigate, pendingAction, consumePendingAction } = useNav();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
 
@@ -31,7 +31,7 @@ export function AppShell({ profile }: Props) {
   function PageContent() {
     switch (page) {
       case "dashboard": return <DashboardPage onNavigate={navigate} />;
-      case "generate": return <GeneratePage profile={profile} />;
+      case "generate": return <GeneratePage profile={profile} pendingAction={pendingAction} onConsumeAction={consumePendingAction} />;
       case "saved": return <SavedRecipesPage />;
       case "recent": return <RecentRecipesPage />;
       case "meal-plan": return <MealPlanPage profile={profile} />;

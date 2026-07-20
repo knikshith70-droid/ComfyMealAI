@@ -12,7 +12,7 @@ import {
   AlertCircle, Clock, CookingPot, Flame, Loader2, Plus, Refrigerator, Sparkles, Trash2,
   Utensils, Zap, History, Leaf,
 } from "lucide-react";
-import type { PantryFlag } from "../lib/supabase";
+import { useNav, type PendingAction } from "../lib/nav";
 
 type StockLevel = "empty" | "average" | "full";
 type CookCapacity = "quick" | "standard" | "proper";
@@ -33,9 +33,11 @@ const DEFAULT_FLEX: FlexState = {
 
 interface Props {
   profile: Profile;
+  pendingAction?: PendingAction;
+  onConsumeAction?: () => void;
 }
 
-export function GeneratePage({ profile }: Props) {
+export function GeneratePage({ profile, pendingAction, onConsumeAction }: Props) {
   const { t, lang } = useI18n();
   const [pantry, setPantry] = useState<PantryItem[]>([]);
   const [pantryDraft, setPantryDraft] = useState("");
@@ -78,6 +80,14 @@ export function GeneratePage({ profile }: Props) {
     })();
     return () => { mounted = false; };
   }, []);
+
+  useEffect(() => {
+    if (pendingAction === "same-as-yesterday" && lastSession && !generating) {
+      sameAsYesterday();
+      onConsumeAction?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAction, lastSession]);
 
   const useSoonNames = useMemo(() => new Set(pantryFlags.filter((p) => p.use_soon).map((p) => p.name)), [pantryFlags]);
 

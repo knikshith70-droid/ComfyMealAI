@@ -75,12 +75,24 @@ export function AuthScreen() {
     clearFeedback();
     try {
       if (isSignUp) {
-        const { error: signUpError } = await supabase.auth.signUp({
-          email: email.trim(),
-          password,
+        // Sign-up: call the signup-with-otp edge function. It checks for an
+        // existing account, creates the user (unconfirmed), and sends an OTP.
+        // The OTP step verifies the email and establishes the session.
+        const res = await fetch(edgeUrl("signup-with-otp"), {
+          method: "POST",
+          headers: edgeHeaders(),
+          body: JSON.stringify({ email: email.trim(), password }),
         });
-        if (signUpError) throw signUpError;
-        // onAuthStateChange fires → profile loaded → App routes to Onboarding/Dashboard
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(json?.error ?? `Sign-up failed (${res.status}).`);
+        }
+        setOtpSent(true);
+        setInfo(
+          json.dev_code
+            ? `Dev mode — code is ${json.dev_code}`
+            : t("enterCode"),
+        );
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email: email.trim(),
@@ -180,7 +192,7 @@ export function AuthScreen() {
   const heroSub = otpSent
     ? t("enterCode")
     : isSignUp
-    ? "Enter your email and a password to get started — or use a one-time code."
+    ? "Enter your email and a password to get started."
     : t("landingSub");
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -401,14 +413,16 @@ export function AuthScreen() {
                       {isSignUp ? "Create account" : "Sign in"}
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() => switchMethod("otp")}
-                      className="btn-ghost w-full text-sm text-charcoal-700/60"
-                    >
-                      <Mail className="h-3.5 w-3.5" />
-                      Use a one-time email code instead
-                    </button>
+                    {!isSignUp && (
+                      <button
+                        type="button"
+                        onClick={() => switchMethod("otp")}
+                        className="btn-ghost w-full text-sm text-charcoal-700/60"
+                      >
+                        <Mail className="h-3.5 w-3.5" />
+                        Use a one-time email code instead
+                      </button>
+                    )}
                   </form>
                 )}
 

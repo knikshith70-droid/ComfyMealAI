@@ -9,16 +9,32 @@ export type Page =
   | "language"
   | "account";
 
+export type PendingAction = "same-as-yesterday" | null;
+
 interface NavState {
   page: Page;
-  navigate: (page: Page) => void;
+  navigate: (page: Page, action?: PendingAction) => void;
+  pendingAction: PendingAction;
+  consumePendingAction: () => void;
 }
 
 const NavContext = createContext<NavState | undefined>(undefined);
 
 export function NavProvider({ children }: { children: ReactNode }) {
   const [page, setPage] = useState<Page>("dashboard");
-  const value = useMemo<NavState>(() => ({ page, navigate: setPage }), [page]);
+  const [pendingAction, setPendingAction] = useState<PendingAction>(null);
+
+  const navigate = (next: Page, action: PendingAction = null) => {
+    setPendingAction(action);
+    setPage(next);
+  };
+
+  const consumePendingAction = () => setPendingAction(null);
+
+  const value = useMemo<NavState>(
+    () => ({ page, navigate, pendingAction, consumePendingAction }),
+    [page, pendingAction],
+  );
   return <NavContext.Provider value={value}>{children}</NavContext.Provider>;
 }
 
