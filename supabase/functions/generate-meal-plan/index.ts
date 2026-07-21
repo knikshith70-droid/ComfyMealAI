@@ -26,7 +26,8 @@ const DURATION_DAYS: Record<string, number> = {
   "1month": 30,
 };
 
-interface PantryItem { name: string; logged_at: string; }
+interface PantryItem { name: string; logged_at: string; quantity?: number; unit?: string; }
+interface SpiceItem { name: string; quantity?: number; unit?: string; }
 interface Profile {
   allergies: string[]; lifestyle: string[]; cuisines: string[];
   adults: number; children: number; goals: string[];
@@ -41,6 +42,7 @@ interface PlanSettings {
 interface RequestBody {
   profile: Profile;
   pantry: PantryItem[];
+  spices?: SpiceItem[];
   duration: string;
   settings: PlanSettings;
   language?: string;
@@ -56,6 +58,12 @@ interface Nutrition {
   fiber_g: number;
 }
 
+interface IngredientDetail {
+  name: string;
+  quantity: number;
+  unit: string;
+}
+
 interface RecipeShape {
   title: string;
   description: string;
@@ -65,6 +73,8 @@ interface RecipeShape {
   steps: string[];
   tags: string[];
   nutrition?: Nutrition;
+  ingredient_details?: IngredientDetail[];
+  missing_ingredients?: IngredientDetail[];
 }
 
 interface DayPlan {
@@ -76,9 +86,10 @@ interface DayPlan {
 }
 
 function buildPrompt(body: RequestBody, days: number) {
-  const { profile, pantry, settings, language = "en" } = body;
+  const { profile, pantry, settings, language = "en", spices = [] } = body;
   const langName = LANGUAGE_NAMES[language] ?? "English";
   const pantryNames = pantry.map((p) => p.name);
+  const spiceList = spices.map((s) => `${s.name} (${s.quantity ?? 1} ${s.unit ?? "tsp"})`);
 
   const servings = Math.max(1, (profile.adults || 1) + Math.max(0, Math.round((profile.children || 0) * 0.6)));
 
@@ -109,11 +120,12 @@ function buildPrompt(body: RequestBody, days: number) {
 
   const isRegen = body.regenerate != null && body.existingPlan != null;
 
-  const system = `You are ComfyMeal AI, a practical meal-planning sous-chef. You design multi-day meal plans that use what the user actually has in their pantry. You ALWAYS respond with strict JSON and nothing else.
+  const system = `You are ComfyMeal AI, a practical meal-planning sous-chef. You design multi-day meal plans that use what the user actually has in their pantry and spice rack. You ALWAYS respond with strict JSON and nothing else.
 
 CORE RULES (never violate):
 - Each meal MUST be built PRIMARILY from the user's logged pantry items. Ingredient lists should be dominated by pantry items.
-- You may add AT MOST a few basic staples: cooking oil, salt, black pepper, water, and one or two common dried spices. Nothing else.
+- You may ONLY use spices and condiments from the user's SPICE & CONDIMENT LIST. Do NOT assume the user has any spice, oil, sauce, or condiment that is NOT in that list. If a recipe needs a spice the user doesn't have, either omit it, substitute with an available one, or list it under "missing_ingredients".
+- If the spice list is empty, assume ONLY salt, black pepper, and water are available. Do NOT assume cooking oil, butter, or any other condiment unless it appears in the spice list.
 - Allergies and exclusions are HARD CONSTRAINTS — never include any allergen.
 - Honor the dietary lifestyle strictly.
 - VARIETY IS CRITICAL: across the ${days} day${days > 1 ? "s" : ""}, avoid repeating the same dish. Vary proteins, techniques, and flavor profiles. Do not serve the same meal twice.
@@ -154,9 +166,12 @@ PLAN SETTINGS:
 - Dietary preferences: ${dietaryLine}
 
 PANTRY ITEMS (meals MUST be built primarily from these):
-${pantryNames.length ? pantryNames.join(", ") : "(pantry is empty — suggest very simple meals using only oil, salt, pepper, water)"}
+${pantryNames.length ? pantryNames.join(", ") : "(pantry is empty — suggest very simple meals using only the spices/condiments listed, salt, pepper, water)"}
 
-ALLOWED ADDITIONS (at most a few, only if needed): cooking oil, salt, black pepper, water, and one or two common dried spices. Do NOT add any other ingredient.
+SPICES & CONDIMENTS AVAILABLE (use ONLY these — do NOT assume any spice/condiment not listed here):
+${spiceList.length ? spiceList.join(", ") : "(none listed — assume ONLY salt, black pepper, and water; do NOT assume oil, butter, or any other condiment)"}
+
+ALLOWED ADDITIONS (only if not covered above): salt, black pepper, water. Any other spice, oil, sauce, or condiment MUST come from the SPICES & CONDIMENTS list.
 
 OUTPUT REQUIREMENTS:
 1. Return a "days" array with exactly ${days} day object${days > 1 ? "s" : ""}.
@@ -188,7 +203,8 @@ HARD CONSTRAINTS (still apply):
 - Allergies (never include): ${allergiesLine}
 - Lifestyle (never violate): ${lifestyleLine}
 - Pantry items: ${pantryNames.join(", ") || "(empty)"}
-- Allowed additions: cooking oil, salt, black pepper, water, one or two common dried spices.
+- Spices & condiments available: ${spices.map((s) => s.name).join(", ") || "(none — only salt, pepper, water)"}
+- Allowed additions: salt, black pepper, water. Any other spice/condiment MUST come from the spices list.
 
 Return the FULL plan as STRICT JSON with the same "days" shape (all days, all 4 slots), with only the requested ${mealSlot} changed:
 {
@@ -252,6 +268,20 @@ function normalizeRecipe(r: Record<string, unknown>): RecipeShape {
     time_minutes: Number(r.time_minutes) || 30,
     servings: Number(r.servings) || 1,
     ingredients: Array.isArray(r.ingredients) ? r.ingredients as string[] : [],
+    ingredient_details: Array.isArray(r.ingredient_details)
+      ? (r.ingredient_details as Record<string, unknown>[]).map((d) => ({
+          name: String(d.name ?? ""),
+          quantity: Number(d.quantity) || 0,
+          unit: String(d.unit ?? "pieces"),
+        })).filter((d) => d.name)
+      : [],
+    missing_ingredients: Array.isArray(r.missing_ingredients)
+      ? (r.missing_ingredients as Record<string, unknown>[]).map((d) => ({
+          name: String(d.name ?? ""),
+          quantity: Number(d.quantity) || 0,
+          unit: String(d.unit ?? "pieces"),
+        })).filter((d) => d.name)
+      : [],
     steps: Array.isArray(r.steps) ? r.steps as string[] : [],
     tags: Array.isArray(r.tags) ? r.tags as string[] : [],
     nutrition: typeof r.nutrition === "object" && r.nutrition !== null

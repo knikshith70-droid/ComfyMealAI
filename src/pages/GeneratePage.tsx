@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "../lib/i18n";
 import {
-  addPantryItem, addPantryItemsWithDate, adjustRecipe, deletePantryItem, fetchLatestSession,
-  fetchPantry, fetchNutritionHistory, generateRecipe, saveSession, addNutritionHistory,
+  addPantryItemsWithDate, adjustRecipe, cookRecipe, fetchLatestSession,
+  fetchPantry, fetchSpices, fetchNutritionHistory, generateRecipe, saveSession, addNutritionHistory,
 } from "../lib/api";
-import type { FlexSession, NutritionHistoryEntry, PantryItem, Profile, Recipe } from "../lib/supabase";
+import type { FlexSession, NutritionHistoryEntry, PantryItem, PantryFlag, Profile, Recipe, SpiceItem } from "../lib/supabase";
 import { RecipeCard } from "../components/RecipeCard";
 import { ReceiptOCR } from "../components/ReceiptOCR";
 import { ChipSelector } from "../components/ChipSelector";
+import { PantryInventory } from "../components/PantryInventory";
 import {
-  AlertCircle, Clock, CookingPot, Flame, Loader2, Plus, Refrigerator, Sparkles, Trash2,
+  AlertCircle, Clock, CookingPot, Flame, Loader2, Refrigerator, Sparkles,
   Utensils, Zap, History, Leaf,
 } from "lucide-react";
 import { useNav, type PendingAction } from "../lib/nav";
@@ -40,7 +41,7 @@ interface Props {
 export function GeneratePage({ profile, pendingAction, onConsumeAction }: Props) {
   const { t, lang } = useI18n();
   const [pantry, setPantry] = useState<PantryItem[]>([]);
-  const [pantryDraft, setPantryDraft] = useState("");
+  const [spices, setSpices] = useState<SpiceItem[]>([]);
   const [flex, setFlex] = useState<FlexState>(DEFAULT_FLEX);
   const [lastSession, setLastSession] = useState<FlexSession | null>(null);
   const [recentHistory, setRecentHistory] = useState<NutritionHistoryEntry[]>([]);
@@ -50,18 +51,21 @@ export function GeneratePage({ profile, pendingAction, onConsumeAction }: Props)
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [pantryFlags, setPantryFlags] = useState<PantryFlag[]>([]);
   const [adjusting, setAdjusting] = useState<{ index: number; label: string } | null>(null);
+  const [cookingIndex, setCookingIndex] = useState<number | null>(null);
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
-        const [items, last, history] = await Promise.all([
+        const [items, spicesList, last, history] = await Promise.all([
           fetchPantry(),
+          fetchSpices(),
           fetchLatestSession(),
           fetchNutritionHistory(30),
         ]);
         if (!mounted) return;
         setPantry(items);
+        setSpices(spicesList);
         setLastSession(last);
         setRecentHistory(history);
         if (last) {
@@ -91,28 +95,6 @@ export function GeneratePage({ profile, pendingAction, onConsumeAction }: Props)
 
   const useSoonNames = useMemo(() => new Set(pantryFlags.filter((p) => p.use_soon).map((p) => p.name)), [pantryFlags]);
 
-  const addPantry = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const v = pantryDraft.trim();
-    if (!v) return;
-    try {
-      const item = await addPantryItem(v);
-      setPantry((prev) => [item, ...prev]);
-      setPantryDraft("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not add pantry item.");
-    }
-  };
-
-  const removePantry = async (id: string) => {
-    try {
-      await deletePantryItem(id);
-      setPantry((prev) => prev.filter((p) => p.id !== id));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not remove pantry item.");
-    }
-  };
-
   const onReceiptConfirm = async (names: string[], loggedAt: string) => {
     const added = await addPantryItemsWithDate(names, loggedAt);
     setPantry((prev) => [...added, ...prev]);
@@ -140,6 +122,7 @@ export function GeneratePage({ profile, pendingAction, onConsumeAction }: Props)
       const res = await generateRecipe({
         profile,
         pantry,
+        spices,
         flex: { ...active, comfort_score: active.comfort_score },
         tier: "standard",
         language: lang,
@@ -178,6 +161,7 @@ export function GeneratePage({ profile, pendingAction, onConsumeAction }: Props)
       const res = await adjustRecipe({
         profile,
         pantry,
+        spices,
         flex,
         tier: "standard",
         language: lang,
@@ -190,6 +174,25 @@ export function GeneratePage({ profile, pendingAction, onConsumeAction }: Props)
       setError(e instanceof Error ? e.message : "Adjustment failed.");
     } finally {
       setAdjusting(null);
+    }
+  };
+
+  const handleCook = async (index: number) => {
+    const recipe = recipes[index];
+    if (!recipe || !recipe.ingredient_details || recipe.ingredient_details.length === 0) {
+      setError("This recipe doesn't have structured ingredient data to deduct from the pantry.");
+      return;
+    }
+    setCookingIndex(index);
+    setError(null);
+    try {
+      const { pantry: newPantry, spices: newSpices } = await cookRecipe(recipe.ingredient_details);
+      setPantry(newPantry);
+      setSpices(newSpices);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not update pantry after cooking.");
+    } finally {
+      setCookingIndex(null);
     }
   };
 
@@ -221,74 +224,22 @@ export function GeneratePage({ profile, pendingAction, onConsumeAction }: Props)
       )}
 
       <div className="grid lg:grid-cols-2 gap-5">
-        {/* Pantry */}
-        <section className="card p-5 sm:p-6">
-          <div className="flex items-center gap-2 mb-1">
-            <Refrigerator className="h-5 w-5 text-sage-700" />
-            <h2 className="font-serif text-xl">{t("pantryTitle")}</h2>
+        {/* Pantry + Spices */}
+        <div className="space-y-5">
+          <PantryInventory
+            pantry={pantry}
+            spices={spices}
+            onPantryChange={setPantry}
+            onSpicesChange={setSpices}
+            onError={(msg) => setError(msg)}
+          />
+          <div className="card p-5 sm:p-6">
+            <div className="mb-3">
+              <div className="label mb-2">Scan Receipt</div>
+              <ReceiptOCR onConfirm={onReceiptConfirm} />
+            </div>
           </div>
-          <p className="muted text-sm mb-4">{t("pantrySubtitle")}</p>
-
-          <form onSubmit={addPantry} className="flex gap-2 mb-4">
-            <input
-              value={pantryDraft}
-              onChange={(e) => setPantryDraft(e.target.value)}
-              placeholder={t("pantryPlaceholder")}
-              className="input"
-            />
-            <button type="submit" disabled={!pantryDraft.trim()} className="btn-primary shrink-0">
-              <Plus className="h-4 w-4" /> {t("add")}
-            </button>
-          </form>
-
-          {/* Receipt OCR */}
-          <div className="mb-4">
-            <ReceiptOCR onConfirm={onReceiptConfirm} />
-          </div>
-
-          {pantry.length === 0 ? (
-            <p className="muted text-sm italic">{t("pantryEmpty")}</p>
-          ) : (
-            <ul className="space-y-2 max-h-64 overflow-y-auto no-scrollbar pr-1">
-              {pantry.map((item) => {
-                const flag = pantryFlags.find((p) => p.name === item.name);
-                const useSoon = flag?.use_soon;
-                return (
-                  <li
-                    key={item.id}
-                    className="flex items-center justify-between gap-3 rounded-xl bg-cream-100/70 border border-cream-200/70 px-3.5 py-2.5 animate-fade-in"
-                  >
-                    <div className="min-w-0">
-                      <div className="font-medium text-charcoal-900 capitalize truncate">{item.name}</div>
-                      <div className="text-xs muted">
-                        {t("added")} {timeAgo(item.logged_at)}
-                        {flag?.shelf_life_days != null && (
-                          <span className="ml-2">· {t("shelfLife")} {flag.shelf_life_days}d</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {useSoon && (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-clay-700 bg-clay-50 border border-clay-200 rounded-full px-2.5 py-1">
-                          <Flame className="h-3 w-3" /> {t("useSoon")}
-                          {flag?.days_left != null && flag.days_left >= 0 && ` · ${flag.days_left}d`}
-                        </span>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => removePantry(item.id)}
-                        className="h-8 w-8 inline-flex items-center justify-center rounded-full text-charcoal-700/50 hover:text-clay-700 hover:bg-clay-50 transition"
-                        aria-label={`Remove ${item.name}`}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
+        </div>
 
         {/* Context controls */}
         <section className="card p-5 sm:p-6">
@@ -375,6 +326,8 @@ export function GeneratePage({ profile, pendingAction, onConsumeAction }: Props)
               useSoonNames={useSoonNames}
               adjusting={adjusting?.index === i ? adjusting.label : null}
               onAdjust={(label, instruction) => adjust(i, label, instruction)}
+              onCook={handleCook}
+              cooking={cookingIndex === i}
               profile={profile}
               index={i}
               pantry={pantry}

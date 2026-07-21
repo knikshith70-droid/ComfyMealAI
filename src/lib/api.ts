@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import type { FlexSession, MealPlan, MealPlanDay, MealPlanSettings, NutritionHistoryEntry, PantryItem, PantryFlag, Profile, Recipe, Tier } from "./supabase";
+import type { FlexSession, MealPlan, MealPlanDay, MealPlanSettings, NutritionHistoryEntry, PantryItem, PantryFlag, Profile, Recipe, Tier, SpiceItem, IngredientDetail } from "./supabase";
 
 export async function fetchProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
@@ -60,10 +60,10 @@ export async function fetchPantry(): Promise<PantryItem[]> {
   return (data ?? []) as PantryItem[];
 }
 
-export async function addPantryItem(name: string): Promise<PantryItem> {
+export async function addPantryItem(name: string, quantity = 1, unit = "pieces"): Promise<PantryItem> {
   const { data, error } = await supabase
     .from("pantry_items")
-    .insert({ name: name.trim() })
+    .insert({ name: name.trim(), quantity, unit })
     .select()
     .single();
   if (error) throw error;
@@ -81,9 +81,118 @@ export async function addPantryItemsWithDate(names: string[], loggedAt: string):
   return (data ?? []) as PantryItem[];
 }
 
+export async function updatePantryItem(id: string, patch: Partial<Pick<PantryItem, "name" | "quantity" | "unit" | "low_stock_threshold">>): Promise<PantryItem> {
+  const { data, error } = await supabase
+    .from("pantry_items")
+    .update(patch)
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as PantryItem;
+}
+
 export async function deletePantryItem(id: string) {
   const { error } = await supabase.from("pantry_items").delete().eq("id", id);
   if (error) throw error;
+}
+
+// --- Spices & Condiments ---
+
+export async function fetchSpices(): Promise<SpiceItem[]> {
+  const { data, error } = await supabase
+    .from("spice_items")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as SpiceItem[];
+}
+
+export async function addSpice(name: string, quantity = 1, unit = "tsp"): Promise<SpiceItem> {
+  const { data, error } = await supabase
+    .from("spice_items")
+    .insert({ name: name.trim(), quantity, unit })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as SpiceItem;
+}
+
+export async function updateSpice(id: string, patch: Partial<Pick<SpiceItem, "name" | "quantity" | "unit" | "low_stock_threshold">>): Promise<SpiceItem> {
+  const { data, error } = await supabase
+    .from("spice_items")
+    .update(patch)
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as SpiceItem;
+}
+
+export async function deleteSpice(id: string) {
+  const { error } = await supabase.from("spice_items").delete().eq("id", id);
+  if (error) throw error;
+}
+
+/**
+ * Deduct used ingredient quantities from the pantry after cooking.
+ * For each ingredient detail, match by normalized name against pantry items
+ * (and spice items), subtract the quantity, delete items that reach 0, and
+ * return the updated pantry + spices lists.
+ */
+export async function cookRecipe(
+  ingredientDetails: IngredientDetail[],
+): Promise<{ pantry: PantryItem[]; spices: SpiceItem[] }> {
+  if (!ingredientDetails.length) {
+    const [pantry, spices] = await Promise.all([fetchPantry(), fetchSpices()]);
+    return { pantry, spices };
+  }
+
+  const norm = (s: string) => s.trim().toLowerCase();
+
+  const [pantryItems, spiceItems] = await Promise.all([fetchPantry(), fetchSpices()]);
+
+  const pantryByNorm = new Map(pantryItems.map((p) => [norm(p.name), p]));
+  const spiceByNorm = new Map(spiceItems.map((s) => [norm(s.name), s]));
+
+  const pantryUpdates: { id: string; quantity: number }[] = [];
+  const pantryDeletes: string[] = [];
+  const spiceUpdates: { id: string; quantity: number }[] = [];
+  const spiceDeletes: string[] = [];
+
+  for (const ing of ingredientDetails) {
+    const key = norm(ing.name);
+    if (!key) continue;
+    const pMatch = pantryByNorm.get(key);
+    if (pMatch) {
+      const newQty = Math.max(0, Number((pMatch.quantity - ing.quantity).toFixed(2)));
+      if (newQty <= 0) pantryDeletes.push(pMatch.id);
+      else pantryUpdates.push({ id: pMatch.id, quantity: newQty });
+      continue;
+    }
+    const sMatch = spiceByNorm.get(key);
+    if (sMatch) {
+      const newQty = Math.max(0, Number((sMatch.quantity - ing.quantity).toFixed(2)));
+      if (newQty <= 0) spiceDeletes.push(sMatch.id);
+      else spiceUpdates.push({ id: sMatch.id, quantity: newQty });
+    }
+  }
+
+  if (pantryUpdates.length) {
+    await Promise.all(pantryUpdates.map((u) => supabase.from("pantry_items").update({ quantity: u.quantity }).eq("id", u.id)));
+  }
+  if (pantryDeletes.length) {
+    await supabase.from("pantry_items").delete().in("id", pantryDeletes);
+  }
+  if (spiceUpdates.length) {
+    await Promise.all(spiceUpdates.map((u) => supabase.from("spice_items").update({ quantity: u.quantity }).eq("id", u.id)));
+  }
+  if (spiceDeletes.length) {
+    await supabase.from("spice_items").delete().in("id", spiceDeletes);
+  }
+
+  const [pantry, spices] = await Promise.all([fetchPantry(), fetchSpices()]);
+  return { pantry, spices };
 }
 
 export async function fetchLatestSession(): Promise<FlexSession | null> {
@@ -112,6 +221,7 @@ export async function saveRecipe(recipe: Recipe) {
     steps: recipe.steps,
     tags: recipe.tags,
     nutrition: recipe.nutrition ?? null,
+    ingredient_details: recipe.ingredient_details ?? null,
   });
   if (error) throw error;
 }
@@ -170,6 +280,7 @@ export interface GenerateResponse {
 export async function generateRecipe(payload: {
   profile: Profile;
   pantry: PantryItem[];
+  spices?: SpiceItem[];
   flex: {
     stock_level: string;
     cook_capacity: string;
@@ -186,6 +297,7 @@ export async function generateRecipe(payload: {
 export async function adjustRecipe(payload: {
   profile: Profile;
   pantry: PantryItem[];
+  spices?: SpiceItem[];
   flex: {
     stock_level: string;
     cook_capacity: string;
@@ -212,6 +324,7 @@ export interface MealPlanResponse {
 export async function generateMealPlan(payload: {
   profile: Profile;
   pantry: PantryItem[];
+  spices?: SpiceItem[];
   duration: string;
   settings: MealPlanSettings;
   language: string;

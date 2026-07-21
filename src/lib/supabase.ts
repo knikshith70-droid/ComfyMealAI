@@ -50,8 +50,27 @@ export interface PantryItem {
   id: string;
   user_id: string;
   name: string;
+  quantity: number;
+  unit: string;
+  low_stock_threshold: number;
   logged_at: string;
   created_at?: string;
+}
+
+export interface SpiceItem {
+  id: string;
+  user_id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  low_stock_threshold: number;
+  created_at: string;
+}
+
+export interface IngredientDetail {
+  name: string;
+  quantity: number;
+  unit: string;
 }
 
 export interface FlexSession {
@@ -82,6 +101,8 @@ export interface Recipe {
   steps: string[];
   tags: string[];
   nutrition?: Nutrition;
+  ingredient_details?: IngredientDetail[];
+  missing_ingredients?: IngredientDetail[];
 }
 
 export type Tier = "standard" | "plus" | "pro";
@@ -91,6 +112,7 @@ export interface SavedRecipe extends Recipe {
   user_id: string;
   created_at: string;
   nutrition?: Nutrition;
+  ingredient_details?: IngredientDetail[] | null;
 }
 
 export interface NutritionHistoryEntry {

@@ -5,7 +5,7 @@ import { useI18n } from "../lib/i18n";
 import { RecipeImage } from "./RecipeImage";
 import { NutritionChart } from "./NutritionChart";
 import {
-  Bookmark, Check, Clock, Flame, Leaf, Loader2, Microwave, Pencil,
+  Bookmark, Check, Clock, CookingPot, Flame, Leaf, Loader2, Microwave, Pencil,
   Soup, Utensils, Wind, AlertCircle,
 } from "lucide-react";
 
@@ -15,6 +15,8 @@ export interface RecipeCardProps {
   useSoonNames: Set<string>;
   adjusting: string | null;
   onAdjust: (label: string, instruction: string) => void;
+  onCook?: () => void;
+  cooking?: boolean;
   profile: Profile;
   index: number;
   pantry: PantryItem[];
@@ -29,7 +31,7 @@ function parseIngredient(ing: string): { quantity: string; name: string } {
   return { quantity: "", name: ing };
 }
 
-export function RecipeCard({ recipe, pantryFlags, useSoonNames, adjusting, onAdjust, profile, index, pantry }: RecipeCardProps) {
+export function RecipeCard({ recipe, pantryFlags, useSoonNames, adjusting, onAdjust, onCook, cooking, profile, index, pantry }: RecipeCardProps) {
   const { t } = useI18n();
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -93,6 +95,18 @@ export function RecipeCard({ recipe, pantryFlags, useSoonNames, adjusting, onAdj
           </div>
           {/* Save button */}
           <div className="flex items-center gap-2 shrink-0">
+            {onCook && (
+              <button
+                type="button"
+                onClick={onCook}
+                disabled={cooking || !recipe.ingredient_details?.length}
+                className="btn-clay"
+                title={recipe.ingredient_details?.length ? "Deduct ingredients from pantry" : "No structured ingredient data"}
+              >
+                {cooking ? <Loader2 className="h-4 w-4 animate-spin" /> : <CookingPot className="h-4 w-4" />}
+                Cook
+              </button>
+            )}
             <button
               type="button"
               onClick={handleSave}
@@ -177,6 +191,17 @@ export function RecipeCard({ recipe, pantryFlags, useSoonNames, adjusting, onAdj
         {recipe.nutrition && (
           <div className="mt-6">
             <NutritionChart nutrition={recipe.nutrition} servings={recipe.servings} />
+          </div>
+        )}
+
+        {recipe.missing_ingredients && recipe.missing_ingredients.length > 0 && (
+          <div className="mt-4 rounded-xl bg-clay-50/60 border border-clay-200/70 px-4 py-3">
+            <div className="flex items-center gap-2 text-clay-700 text-sm font-medium mb-1">
+              <AlertCircle className="h-4 w-4" /> Optional / Missing Ingredients
+            </div>
+            <p className="text-sm text-clay-700/90">
+              {recipe.missing_ingredients.map((m) => `${m.quantity} ${m.unit} ${m.name}`).join(", ")}
+            </p>
           </div>
         )}
 

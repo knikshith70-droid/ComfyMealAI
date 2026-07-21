@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { useI18n } from "../lib/i18n";
-import { addPantryItem, deletePantryItem, fetchPantry, generateMealPlan, saveMealPlan } from "../lib/api";
-import type { MealPlanDay, MealPlanSettings, PantryItem, Profile, Recipe } from "../lib/supabase";
+import { fetchPantry, fetchSpices, generateMealPlan, saveMealPlan } from "../lib/api";
+import type { MealPlanDay, MealPlanSettings, PantryItem, Profile, Recipe, SpiceItem } from "../lib/supabase";
 import { RecipeDetailModal } from "../components/RecipeDetailModal";
 import { ChipSelector } from "../components/ChipSelector";
+import { PantryInventory } from "../components/PantryInventory";
 import {
   AlertCircle, CalendarRange, Check, Clock, Loader2, Sparkles, Download, RefreshCw, Utensils, Wallet, Timer, Leaf,
-  Plus, Refrigerator, Trash2, ChevronDown, ChevronUp,
 } from "lucide-react";
 
 type Duration = "1day" | "3day" | "1week" | "2week" | "1month";
@@ -18,8 +18,7 @@ interface Props {
 export function MealPlanPage({ profile }: Props) {
   const { t, lang } = useI18n();
   const [pantry, setPantry] = useState<PantryItem[]>([]);
-  const [pantryDraft, setPantryDraft] = useState("");
-  const [pantryExpanded, setPantryExpanded] = useState(false);
+  const [spices, setSpices] = useState<SpiceItem[]>([]);
   const [duration, setDuration] = useState<Duration>("3day");
   const [budget, setBudget] = useState("any");
   const [cookTime, setCookTime] = useState("any");
@@ -31,41 +30,18 @@ export function MealPlanPage({ profile }: Props) {
   const [saving, setSaving] = useState(false);
   const [regenerating, setRegenerating] = useState<{ dayIndex: number; slot: string } | null>(null);
 
-  const reloadPantry = async () => {
-    const items = await fetchPantry();
-    setPantry(items);
-  };
-
   useEffect(() => {
     let mounted = true;
-    fetchPantry()
-      .then((items) => { if (mounted) setPantry(items); })
+    Promise.all([fetchPantry(), fetchSpices()])
+      .then(([items, spicesList]) => {
+        if (!mounted) return;
+        setPantry(items);
+        setSpices(spicesList);
+      })
       .catch((e) => { if (mounted) setError(e instanceof Error ? e.message : "Failed to load pantry."); })
       .finally(() => { if (mounted) setLoading(false); });
     return () => { mounted = false; };
   }, []);
-
-  const addPantry = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const v = pantryDraft.trim();
-    if (!v) return;
-    try {
-      await addPantryItem(v);
-      setPantryDraft("");
-      await reloadPantry();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not add pantry item.");
-    }
-  };
-
-  const removePantry = async (id: string) => {
-    try {
-      await deletePantryItem(id);
-      setPantry((prev) => prev.filter((p) => p.id !== id));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not remove pantry item.");
-    }
-  };
 
   const dietary: string[] = [
     ...profile.lifestyle,
@@ -82,6 +58,7 @@ export function MealPlanPage({ profile }: Props) {
       const res = await generateMealPlan({
         profile,
         pantry,
+        spices,
         duration,
         settings,
         language: lang,
@@ -103,6 +80,7 @@ export function MealPlanPage({ profile }: Props) {
       const res = await generateMealPlan({
         profile,
         pantry,
+        spices,
         duration,
         settings,
         language: lang,
@@ -233,55 +211,15 @@ export function MealPlanPage({ profile }: Props) {
             <p className="text-xs muted">{t("dietaryPrefsSub")}: {dietary.length ? dietary.join(", ") : "—"}</p>
           </div>
 
-          {/* Pantry management */}
-          <div className="rounded-xl border border-cream-200/70 overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setPantryExpanded((e) => !e)}
-              className="w-full flex items-center justify-between px-4 py-3 bg-cream-50 hover:bg-cream-100 transition"
-            >
-              <div className="flex items-center gap-2">
-                <Refrigerator className="h-4 w-4 text-sage-600" />
-                <span className="text-sm font-medium text-charcoal-900">{t("pantryTitle")}</span>
-                <span className="text-xs text-charcoal-700/60">({pantry.length} {pantry.length === 1 ? "item" : "items"})</span>
-              </div>
-              {pantryExpanded ? <ChevronUp className="h-4 w-4 text-charcoal-700/50" /> : <ChevronDown className="h-4 w-4 text-charcoal-700/50" />}
-            </button>
-            {pantryExpanded && (
-              <div className="px-4 py-4 bg-cream-100/40 animate-fade-in">
-                <form onSubmit={addPantry} className="flex gap-2 mb-3">
-                  <input
-                    value={pantryDraft}
-                    onChange={(e) => setPantryDraft(e.target.value)}
-                    placeholder={t("pantryPlaceholder")}
-                    className="input flex-1"
-                  />
-                  <button type="submit" disabled={!pantryDraft.trim()} className="btn-primary shrink-0">
-                    <Plus className="h-4 w-4" />
-                  </button>
-                </form>
-                {pantry.length === 0 ? (
-                  <p className="text-xs muted italic">{t("pantryEmpty")}</p>
-                ) : (
-                  <ul className="space-y-1.5 max-h-40 overflow-y-auto no-scrollbar">
-                    {pantry.map((item) => (
-                      <li key={item.id} className="flex items-center justify-between gap-2 rounded-lg bg-cream-50/70 px-2.5 py-1.5">
-                        <span className="text-sm text-charcoal-900 capitalize truncate">{item.name}</span>
-                        <button
-                          type="button"
-                          onClick={() => removePantry(item.id)}
-                          className="h-6 w-6 inline-flex items-center justify-center rounded-full text-charcoal-700/40 hover:text-clay-700 hover:bg-clay-50 transition"
-                          aria-label={`Remove ${item.name}`}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-          </div>
+          {/* Pantry + Spices management */}
+          <PantryInventory
+            pantry={pantry}
+            spices={spices}
+            onPantryChange={setPantry}
+            onSpicesChange={setSpices}
+            onError={(msg) => setError(msg)}
+            compact
+          />
 
           <button type="button" onClick={generate} disabled={generating} className="btn-clay w-full text-base py-3.5">
             {generating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}

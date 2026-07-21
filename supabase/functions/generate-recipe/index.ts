@@ -34,7 +34,8 @@ const LANGUAGE_NAMES: Record<string, string> = {
   ar: "Arabic (العربية)",
 };
 
-interface PantryItem { name: string; logged_at: string; }
+interface PantryItem { name: string; logged_at: string; quantity?: number; unit?: string; }
+interface SpiceItem { name: string; quantity?: number; unit?: string; }
 interface Profile {
   allergies: string[]; lifestyle: string[]; cuisines: string[];
   adults: number; children: number; goals: string[];
@@ -48,6 +49,7 @@ interface RequestBody {
   action: "generate" | "adjust";
   profile: Profile;
   pantry: PantryItem[];
+  spices?: SpiceItem[];
   flex: FlexContext;
   tier?: "standard" | "plus" | "pro";
   language?: string;
@@ -70,6 +72,12 @@ interface Nutrition {
   fiber_g: number;
 }
 
+interface IngredientDetail {
+  name: string;
+  quantity: number;
+  unit: string;
+}
+
 interface RecipeShape {
   title: string;
   description: string;
@@ -79,6 +87,8 @@ interface RecipeShape {
   steps: string[];
   tags: string[];
   nutrition?: Nutrition;
+  ingredient_details?: IngredientDetail[];
+  missing_ingredients?: IngredientDetail[];
 }
 
 function lookupShelfLife(name: string): number | null {
@@ -112,12 +122,14 @@ function flagUseSoon(pantry: PantryItem[]) {
 }
 
 function buildPrompt(body: RequestBody, flaggedPantry: ReturnType<typeof flagUseSoon>) {
-  const { profile, flex, adjustment, previousRecipe, action, tier = "standard", language = "en" } = body;
+  const { profile, flex, adjustment, previousRecipe, action, tier = "standard", language = "en", spices = [] } = body;
   const count = TIER_COUNTS[tier] ?? 2;
   const langName = LANGUAGE_NAMES[language] ?? "English";
 
   const useSoonItems = flaggedPantry.filter((p) => p.use_soon).map((p) => p.name);
   const pantryNames = body.pantry.map((p) => p.name);
+  const spiceNames = spices.map((s) => s.name);
+  const spiceList = spices.map((s) => `${s.name} (${s.quantity ?? 1} ${s.unit ?? "tsp"})`);
 
   const capacityLabel =
     flex.cook_capacity === "quick" ? "Quick & Easy (under 25 minutes, minimal cleanup)" :
@@ -179,11 +191,12 @@ function buildPrompt(body: RequestBody, flaggedPantry: ReturnType<typeof flagUse
     tier === "plus" ? "This is the Plus tier — provide a good variety across the recipes with thoughtful personalization." :
     "This is the Standard tier — provide solid, reliable recipes.";
 
-  let system = `You are ComfyMeal AI, a practical meal-planning sous-chef. You design recipes that use what the user actually has in their pantry. You ALWAYS respond with strict JSON and nothing else.
+  let system = `You are ComfyMeal AI, a practical meal-planning sous-chef. You design recipes that use what the user actually has in their pantry and spice rack. You ALWAYS respond with strict JSON and nothing else.
 
 CORE RULES (never violate):
 - Each recipe MUST be built PRIMARILY from the user's logged pantry items. The ingredient list should be dominated by pantry items.
-- You may add AT MOST a few basic staples that almost any kitchen has: cooking oil, salt, black pepper, water, and one or two common dried spices. Nothing else. Do NOT invent produce, proteins, dairy, or other fresh items that are not in the pantry list.
+- You may ONLY use spices and condiments from the user's SPICE & CONDIMENT LIST. Do NOT assume the user has any spice, oil, sauce, or condiment that is NOT in that list. If a recipe needs a spice the user doesn't have, either omit it, substitute with an available one, or list it under "missing_ingredients".
+- If the spice list is empty, assume ONLY salt, black pepper, and water are available. Do NOT assume cooking oil, butter, or any other condiment unless it appears in the spice list.
 - Allergies and exclusions are HARD CONSTRAINTS — never include any ingredient that contains or is derived from a listed allergen. When in doubt, leave it out.
 - Honor the dietary lifestyle strictly (vegan = no animal products, vegetarian = no meat/fish, keto = very low carb, etc.).
 - If use-soon items are listed, at least one recipe MUST feature one of them prominently.
@@ -220,9 +233,12 @@ CURRENT CONTEXT:
 - Comfort-to-adventurous slider: ${flex.comfort_score}/100 → ${comfortLabel}
 
 PANTRY ITEMS (each recipe MUST be built primarily from these):
-${pantryNames.length ? pantryNames.join(", ") : "(pantry is empty — suggest very simple recipes using only oil, salt, pepper, and water, and note in the description that the pantry is empty)"}
+${pantryNames.length ? pantryNames.join(", ") : "(pantry is empty — suggest very simple recipes using only the spices/condiments listed, salt, pepper, and water, and note in the description that the pantry is empty)"}
 
-${useSoonItems.length ? `USE-SOON ITEMS (at least one recipe MUST feature one of these prominently — they are near spoilage): ${useSoonItems.join(", ")}\n` : ""}${learningLine ? `${learningLine}\n\n` : ""}ALLOWED ADDITIONS (at most a few, only if needed): cooking oil, salt, black pepper, water, and one or two common dried spices (e.g. cumin, oregano, paprika). Do NOT add any other ingredient that is not in the pantry list.
+SPICES & CONDIMENTS AVAILABLE (use ONLY these — do NOT assume any spice/condiment not listed here):
+${spiceList.length ? spiceList.join(", ") : "(none listed — assume ONLY salt, black pepper, and water; do NOT assume oil, butter, or any other condiment)"}
+
+${useSoonItems.length ? `USE-SOON ITEMS (at least one recipe MUST feature one of these prominently — they are near spoilage): ${useSoonItems.join(", ")}\n` : ""}${learningLine ? `${learningLine}\n\n` : ""}ALLOWED ADDITIONS (only if not covered above): salt, black pepper, water. Any other spice, oil, sauce, or condiment MUST come from the SPICES & CONDIMENTS list. Do NOT invent other ingredients.
 
 OUTPUT REQUIREMENTS:
 1. Each ingredient list must be dominated by pantry items. List each ingredient with a SPECIFIC QUANTITY (e.g. "2 medium tomatoes", "200g paneer", "1 cup rice", "3 cloves garlic", "2 tbsp olive oil"). NEVER list an ingredient without a quantity.
@@ -231,6 +247,8 @@ OUTPUT REQUIREMENTS:
 4. Target the servings count above.
 5. For each recipe, provide a realistic per-serving nutrition estimate (calories, protein_g, carbs_g, fat_g, fiber_g).
 6. Keep ingredients realistic and commonly available.
+7. For each recipe, provide "ingredient_details" — an array of { name, quantity, unit } for EVERY ingredient used. The name should match the pantry/spice item name when possible. Use standard units (g, kg, ml, L, tsp, tbsp, cups, pieces, cloves, slices, cans).
+8. If a recipe requires a spice or condiment that is NOT in the user's SPICES & CONDIMENTS list, add it to "missing_ingredients" as { name, quantity, unit } and note it as optional in the recipe description.
 
 Respond with STRICT JSON in this exact shape (no markdown, no commentary):
 {
@@ -241,6 +259,8 @@ Respond with STRICT JSON in this exact shape (no markdown, no commentary):
       "time_minutes": number,
       "servings": number,
       "ingredients": ["string with quantity in ${langName}", ...],
+      "ingredient_details": [{"name": "string", "quantity": number, "unit": "string"}, ...],
+      "missing_ingredients": [{"name": "string", "quantity": number, "unit": "string"}, ...],
       "steps": ["string in ${langName}", ...],
       "tags": ["string in ${langName}", ...],
       "nutrition": {
@@ -265,7 +285,8 @@ HARD CONSTRAINTS (still apply):
 - Allergies (never include): ${allergiesLine}
 - Lifestyle (never violate): ${lifestyleLine}
 - Pantry items the recipe should be built from: ${pantryNames.join(", ") || "(empty)"}
-- Allowed additions (at most a few): cooking oil, salt, black pepper, water, one or two common dried spices. Do NOT invent other ingredients.
+- Spices & condiments available: ${spiceNames.join(", ") || "(none — only salt, pepper, water)"}
+- Allowed additions: salt, black pepper, water. Any other spice/condiment MUST come from the spices list.
 
 Return the FULL adjusted recipe as STRICT JSON with this shape (no markdown, no commentary):
 {
@@ -276,6 +297,8 @@ Return the FULL adjusted recipe as STRICT JSON with this shape (no markdown, no 
       "time_minutes": number,
       "servings": number,
       "ingredients": ["string in ${langName}", ...],
+      "ingredient_details": [{"name": "string", "quantity": number, "unit": "string"}, ...],
+      "missing_ingredients": [{"name": "string", "quantity": number, "unit": "string"}, ...],
       "steps": ["string in ${langName}", ...],
       "tags": ["string in ${langName}", ...],
       "nutrition": { "calories": number, "protein_g": number, "carbs_g": number, "fat_g": number, "fiber_g": number }
@@ -357,6 +380,20 @@ function normalizeRecipes(parsed: unknown): RecipeShape[] {
       time_minutes: Number(r.time_minutes) || 30,
       servings: Number(r.servings) || 1,
       ingredients: r.ingredients as string[],
+      ingredient_details: Array.isArray(r.ingredient_details)
+        ? (r.ingredient_details as Record<string, unknown>[]).map((d) => ({
+            name: String(d.name ?? ""),
+            quantity: Number(d.quantity) || 0,
+            unit: String(d.unit ?? "pieces"),
+          })).filter((d) => d.name)
+        : [],
+      missing_ingredients: Array.isArray(r.missing_ingredients)
+        ? (r.missing_ingredients as Record<string, unknown>[]).map((d) => ({
+            name: String(d.name ?? ""),
+            quantity: Number(d.quantity) || 0,
+            unit: String(d.unit ?? "pieces"),
+          })).filter((d) => d.name)
+        : [],
       steps: Array.isArray(r.steps) ? r.steps as string[] : [],
       tags: Array.isArray(r.tags) ? r.tags as string[] : [],
       nutrition: typeof r.nutrition === "object" && r.nutrition !== null
