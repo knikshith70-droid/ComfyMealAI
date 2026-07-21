@@ -326,7 +326,7 @@ export function GeneratePage({ profile, pendingAction, onConsumeAction }: Props)
               useSoonNames={useSoonNames}
               adjusting={adjusting?.index === i ? adjusting.label : null}
               onAdjust={(label, instruction) => adjust(i, label, instruction)}
-              onCook={handleCook}
+              onCook={() => handleCook(i)}
               cooking={cookingIndex === i}
               profile={profile}
               index={i}
