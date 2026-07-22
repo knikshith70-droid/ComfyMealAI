@@ -1,6 +1,7 @@
 import { useState } from "react";
-import type { PantryItem, Profile, Recipe } from "../lib/supabase";
+import type { PantryItem, Profile, Recipe, SpiceItem } from "../lib/supabase";
 import { saveRecipe, adjustRecipe } from "../lib/api";
+import { isIngredientAvailable } from "../lib/ingredientMatch";
 import { useI18n } from "../lib/i18n";
 import { CompactRecipeImage } from "./RecipeImage";
 import { NutritionChart } from "./NutritionChart";
@@ -12,6 +13,7 @@ import {
 interface Props {
   recipe: Recipe | null | undefined;
   pantry: PantryItem[] | null | undefined;
+  spices?: SpiceItem[] | null | undefined;
   onClose: () => void;
   onRegenerate?: () => void;
   regenerating?: boolean;
@@ -30,7 +32,7 @@ function parseIngredient(ing: string): { quantity: string; name: string } {
   return { quantity: "", name: ing };
 }
 
-export function RecipeDetailModal({ recipe, pantry, onClose, onRegenerate, regenerating, mealSlot, profile, flex, language }: Props) {
+export function RecipeDetailModal({ recipe, pantry, spices, onClose, onRegenerate, regenerating, mealSlot, profile, flex, language }: Props) {
   const { t } = useI18n();
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -86,12 +88,11 @@ export function RecipeDetailModal({ recipe, pantry, onClose, onRegenerate, regen
   };
 
   const safePantry = Array.isArray(pantry) ? pantry : [];
-  const pantryNames = new Set(safePantry.map((p) => p.name.toLowerCase()));
-  const ingredientStatus = safeRecipe.ingredients.map((ing) => {
-    const ingLower = ing.toLowerCase();
-    const isAvailable = Array.from(pantryNames).some((p) => ingLower.includes(p) || p.includes(ingLower.split(" ")[0] || ""));
-    return { ingredient: ing, available: isAvailable };
-  });
+  const safeSpices = Array.isArray(spices) ? spices : [];
+  const ingredientStatus = safeRecipe.ingredients.map((ing) => ({
+    ingredient: ing,
+    available: isIngredientAvailable(ing, safePantry, safeSpices),
+  }));
 
   const availableCount = ingredientStatus.filter((i) => i.available).length;
   const missingIngredients = ingredientStatus.filter((i) => !i.available).map((i) => i.ingredient);

@@ -331,6 +331,7 @@ export function GeneratePage({ profile, pendingAction, onConsumeAction }: Props)
               profile={profile}
               index={i}
               pantry={pantry}
+              spices={spices}
             />
           ))}
         </div>

@@ -113,11 +113,11 @@ export function MealPlanPage({ profile }: Props) {
     if (!plan) return;
     const lines: string[] = [`${t("mealPlanTitle")} — ${durationLabel(duration)}`, ""];
     plan.forEach((day, di) => {
-      lines.push(`${t("day")} ${di + 1} — ${day.date}`);
-      lines.push(`  ${t("breakfastLabel")}: ${day.breakfast.title}`);
-      lines.push(`  ${t("lunchLabel")}: ${day.lunch.title}`);
-      lines.push(`  ${t("dinnerLabel")}: ${day.dinner.title}`);
-      lines.push(`  ${t("snacksLabel")}: ${day.snacks.title}`);
+      lines.push(`${t("day")} ${di + 1} — ${day.date ?? ""}`);
+      lines.push(`  ${t("breakfastLabel")}: ${day.breakfast?.title ?? "—"}`);
+      lines.push(`  ${t("lunchLabel")}: ${day.lunch?.title ?? "—"}`);
+      lines.push(`  ${t("dinnerLabel")}: ${day.dinner?.title ?? "—"}`);
+      lines.push(`  ${t("snacksLabel")}: ${day.snacks?.title ?? "—"}`);
       lines.push("");
     });
     const blob = new Blob([lines.join("\n")], { type: "text/plain" });
@@ -251,10 +251,10 @@ export function MealPlanPage({ profile }: Props) {
                 <span className="text-xs muted ml-1">{day.date}</span>
               </div>
               <div className="grid sm:grid-cols-2 gap-4">
-                <MealSlot day={day} slot="breakfast" label={t("breakfastLabel")} regenerating={regenerating} dayIndex={di} onRegenerate={regenerateMeal} pantry={pantry} profile={profile} lang={lang} />
-                <MealSlot day={day} slot="lunch" label={t("lunchLabel")} regenerating={regenerating} dayIndex={di} onRegenerate={regenerateMeal} pantry={pantry} profile={profile} lang={lang} />
-                <MealSlot day={day} slot="dinner" label={t("dinnerLabel")} regenerating={regenerating} dayIndex={di} onRegenerate={regenerateMeal} pantry={pantry} profile={profile} lang={lang} />
-                <MealSlot day={day} slot="snacks" label={t("snacksLabel")} regenerating={regenerating} dayIndex={di} onRegenerate={regenerateMeal} pantry={pantry} profile={profile} lang={lang} />
+                <MealSlot day={day} slot="breakfast" label={t("breakfastLabel")} regenerating={regenerating} dayIndex={di} onRegenerate={regenerateMeal} pantry={pantry} spices={spices} profile={profile} lang={lang} />
+                <MealSlot day={day} slot="lunch" label={t("lunchLabel")} regenerating={regenerating} dayIndex={di} onRegenerate={regenerateMeal} pantry={pantry} spices={spices} profile={profile} lang={lang} />
+                <MealSlot day={day} slot="dinner" label={t("dinnerLabel")} regenerating={regenerating} dayIndex={di} onRegenerate={regenerateMeal} pantry={pantry} spices={spices} profile={profile} lang={lang} />
+                <MealSlot day={day} slot="snacks" label={t("snacksLabel")} regenerating={regenerating} dayIndex={di} onRegenerate={regenerateMeal} pantry={pantry} spices={spices} profile={profile} lang={lang} />
               </div>
             </section>
           ))}
@@ -281,7 +281,7 @@ function OptionChip({ value, current, set, label }: { value: string; current: st
 }
 
 function MealSlot({
-  day, slot, label, regenerating, dayIndex, onRegenerate, pantry, profile, lang,
+  day, slot, label, regenerating, dayIndex, onRegenerate, pantry, spices, profile, lang,
 }: {
   day: MealPlanDay;
   slot: "breakfast" | "lunch" | "dinner" | "snacks";
@@ -290,6 +290,7 @@ function MealSlot({
   dayIndex: number;
   onRegenerate: (dayIndex: number, slot: string) => void;
   pantry: PantryItem[];
+  spices: SpiceItem[];
   profile: Profile;
   lang: string;
 }) {
@@ -360,6 +361,7 @@ function MealSlot({
         <RecipeDetailModal
           recipe={recipe}
           pantry={pantry}
+          spices={spices}
           onClose={() => setShowModal(false)}
           onRegenerate={() => { setShowModal(false); onRegenerate(dayIndex, slot); }}
           regenerating={isRegen}

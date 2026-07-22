@@ -1,6 +1,7 @@
 import { useState } from "react";
-import type { PantryFlag, PantryItem, Profile, Recipe } from "../lib/supabase";
+import type { PantryFlag, PantryItem, Profile, Recipe, SpiceItem } from "../lib/supabase";
 import { saveRecipe } from "../lib/api";
+import { filterGenuinelyMissing } from "../lib/ingredientMatch";
 import { useI18n } from "../lib/i18n";
 import { RecipeImage } from "./RecipeImage";
 import { NutritionChart } from "./NutritionChart";
@@ -20,6 +21,7 @@ export interface RecipeCardProps {
   profile: Profile;
   index: number;
   pantry: PantryItem[];
+  spices?: SpiceItem[];
 }
 
 /** Parse an ingredient string into { name, quantity } parts. */
@@ -31,7 +33,7 @@ function parseIngredient(ing: string): { quantity: string; name: string } {
   return { quantity: "", name: ing };
 }
 
-export function RecipeCard({ recipe, pantryFlags, useSoonNames, adjusting, onAdjust, onCook, cooking, profile, index, pantry }: RecipeCardProps) {
+export function RecipeCard({ recipe, pantryFlags, useSoonNames, adjusting, onAdjust, onCook, cooking, profile, index, pantry, spices }: RecipeCardProps) {
   const { t } = useI18n();
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -194,16 +196,20 @@ export function RecipeCard({ recipe, pantryFlags, useSoonNames, adjusting, onAdj
           </div>
         )}
 
-        {recipe.missing_ingredients && recipe.missing_ingredients.length > 0 && (
-          <div className="mt-4 rounded-xl bg-clay-50/60 border border-clay-200/70 px-4 py-3">
-            <div className="flex items-center gap-2 text-clay-700 text-sm font-medium mb-1">
-              <AlertCircle className="h-4 w-4" /> Optional / Missing Ingredients
+        {(() => {
+          const genuinelyMissing = filterGenuinelyMissing(recipe.missing_ingredients ?? [], pantry, spices ?? []);
+          if (genuinelyMissing.length === 0) return null;
+          return (
+            <div className="mt-4 rounded-xl bg-clay-50/60 border border-clay-200/70 px-4 py-3">
+              <div className="flex items-center gap-2 text-clay-700 text-sm font-medium mb-1">
+                <AlertCircle className="h-4 w-4" /> Optional / Missing Ingredients
+              </div>
+              <p className="text-sm text-clay-700/90">
+                {genuinelyMissing.map((m) => `${m.quantity} ${m.unit} ${m.name}`).join(", ")}
+              </p>
             </div>
-            <p className="text-sm text-clay-700/90">
-              {recipe.missing_ingredients.map((m) => `${m.quantity} ${m.unit} ${m.name}`).join(", ")}
-            </p>
-          </div>
-        )}
+          );
+        })()}
 
         {saveError && (
           <div className="mt-4 flex items-start gap-2 text-sm text-clay-700 bg-clay-50 border border-clay-200 rounded-xl px-3.5 py-3">

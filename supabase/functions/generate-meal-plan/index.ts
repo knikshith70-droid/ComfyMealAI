@@ -180,8 +180,8 @@ ${spiceList.length ? spiceList.join(", ") : "(none listed — assume ONLY salt, 
 ALLOWED ADDITIONS (only if not covered above): salt, black pepper, water. Any other spice, oil, sauce, or condiment MUST come from the SPICES & CONDIMENTS list.
 
 OUTPUT REQUIREMENTS:
-1. Return a "days" array with exactly ${days} day object${days > 1 ? "s" : ""}.
-2. Each day object has: "date" (ISO date string starting tomorrow), "breakfast", "lunch", "dinner", "snacks" — each a full recipe object.
+1. CRITICAL: Return a "days" array with EXACTLY ${days} day object${days > 1 ? "s" : ""}. If you generate fewer than ${days} days, the plan will be REJECTED. Count the days before responding and ensure there are exactly ${days}.
+2. Each day object has: "date" (ISO date string starting tomorrow), "breakfast", "lunch", "dinner", "snacks" — each a full recipe object. Every day MUST have all 4 slots. Never omit a slot.
 3. Each recipe has: title, description, time_minutes, servings, ingredients (ALWAYS with specific quantities like "200g rice", "2 medium onions", "1 cup lentils" — never list an ingredient without a quantity), ingredient_details ([{"name": "...", "quantity": number, "unit": "..."}]), missing_ingredients (same shape, for items not in pantry/spices), steps, tags, nutrition (calories, protein_g, carbs_g, fat_g, fiber_g).
 4. No repeated dishes across the whole plan.
 5. Select only pantry ingredients that fit each meal slot. Do NOT include pantry items that are unsuitable for that meal type.
@@ -332,6 +332,48 @@ function normalizePlan(parsed: unknown): DayPlan[] {
   return days;
 }
 
+const PLACEHOLDER_RECIPE: RecipeShape = {
+  title: "Meal to be regenerated",
+  description: "This meal slot was not generated correctly. Please use the regenerate button.",
+  time_minutes: 30,
+  servings: 1,
+  ingredients: [],
+  ingredient_details: [],
+  missing_ingredients: [],
+  steps: [],
+  tags: [],
+  nutrition: { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0, fiber_g: 0 },
+};
+
+function repairPlan(days: DayPlan[], requestedCount: number): DayPlan[] {
+  const SLOTS: (keyof DayPlan)[] = ["breakfast", "lunch", "dinner", "snacks"];
+
+  const repaired = days.map((d) => {
+    const fixed: DayPlan = { ...d };
+    for (const slot of SLOTS) {
+      if (!fixed[slot] || !fixed[slot].title) {
+        fixed[slot] = { ...PLACEHOLDER_RECIPE };
+      }
+    }
+    return fixed;
+  });
+
+  while (repaired.length < requestedCount) {
+    const lastDate = repaired.length > 0 ? repaired[repaired.length - 1].date : new Date().toISOString().slice(0, 10);
+    const next = new Date(lastDate);
+    next.setDate(next.getDate() + 1);
+    repaired.push({
+      date: next.toISOString().slice(0, 10),
+      breakfast: { ...PLACEHOLDER_RECIPE },
+      lunch: { ...PLACEHOLDER_RECIPE },
+      dinner: { ...PLACEHOLDER_RECIPE },
+      snacks: { ...PLACEHOLDER_RECIPE },
+    });
+  }
+
+  return repaired.slice(0, requestedCount);
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -349,10 +391,9 @@ Deno.serve(async (req: Request) => {
 
     const days = DURATION_DAYS[body.duration] ?? 1;
     const { system, user } = buildPrompt(body, days);
-    // More days = more tokens. ~600 per day as a rough budget.
-    const maxTokens = Math.min(8000, 1200 + days * 600);
+    const maxTokens = Math.min(16000, 2500 + days * 800);
     const parsed = await callGroq(system, user, maxTokens);
-    const plan = normalizePlan(parsed);
+    const plan = repairPlan(normalizePlan(parsed), days);
 
     return new Response(
       JSON.stringify({ plan }),
