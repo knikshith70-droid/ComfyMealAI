@@ -194,12 +194,19 @@ function buildPrompt(body: RequestBody, flaggedPantry: ReturnType<typeof flagUse
   let system = `You are ComfyMeal AI, a practical meal-planning sous-chef. You design recipes that use what the user actually has in their pantry and spice rack. You ALWAYS respond with strict JSON and nothing else.
 
 CORE RULES (never violate):
-- Each recipe MUST be built PRIMARILY from the user's logged pantry items. The ingredient list should be dominated by pantry items.
+- The pantry is an INVENTORY of available ingredients — NOT a checklist of items that must all be used. Select ONLY the ingredients that are appropriate for the requested meal type and cuisine. Leave unsuitable ingredients unused for future recipes.
+- MEAL TYPE HAS THE HIGHEST PRIORITY. Only use ingredients that naturally belong in the requested meal type:
+  * Breakfast: eggs, bread, oats, milk, fruits, vegetables, cheese, yogurt, pancakes, granola, etc.
+  * Lunch/Dinner: chicken, rice, pasta, vegetables, lentils, beans, fish, meat, grains, etc.
+  * Snacks: fruits, yogurt, nuts, sandwiches, smoothies, dips, crackers, etc.
+  * Dessert: fruits, chocolate, cream, milk, butter, sugar, flour, etc.
+- Do NOT force an ingredient into a recipe simply because it exists in the pantry. For example, never add chicken to breakfast or rice to a smoothie.
+- Use ONLY ingredients that naturally belong together in the selected cuisine and meal type. A realistic, balanced dish is more important than using more pantry items.
 - You may ONLY use spices and condiments from the user's SPICE & CONDIMENT LIST. Do NOT assume the user has any spice, oil, sauce, or condiment that is NOT in that list. If a recipe needs a spice the user doesn't have, either omit it, substitute with an available one, or list it under "missing_ingredients".
 - If the spice list is empty, assume ONLY salt, black pepper, and water are available. Do NOT assume cooking oil, butter, or any other condiment unless it appears in the spice list.
 - Allergies and exclusions are HARD CONSTRAINTS — never include any ingredient that contains or is derived from a listed allergen. When in doubt, leave it out.
 - Honor the dietary lifestyle strictly (vegan = no animal products, vegetarian = no meat/fish, keto = very low carb, etc.).
-- If use-soon items are listed, at least one recipe MUST feature one of them prominently.
+- If use-soon items are listed, consider featuring one of them IF AND ONLY IF it logically fits the requested meal type. Do not force a use-soon item into a meal where it does not belong.
 - ${tierNote}
 
 DISH DIVERSITY (CRITICAL):
@@ -232,7 +239,7 @@ CURRENT CONTEXT:
 - Cook capacity today: ${capacityLabel}
 - Comfort-to-adventurous slider: ${flex.comfort_score}/100 → ${comfortLabel}
 
-PANTRY ITEMS (each recipe MUST be built primarily from these):
+PANTRY INVENTORY (choose from these — do NOT use all of them; select only what fits the meal type):
 ${pantryNames.length ? pantryNames.join(", ") : "(pantry is empty — suggest very simple recipes using only the spices/condiments listed, salt, pepper, and water, and note in the description that the pantry is empty)"}
 
 SPICES & CONDIMENTS AVAILABLE (use ONLY these — do NOT assume any spice/condiment not listed here):
@@ -241,7 +248,7 @@ ${spiceList.length ? spiceList.join(", ") : "(none listed — assume ONLY salt, 
 ${useSoonItems.length ? `USE-SOON ITEMS (at least one recipe MUST feature one of these prominently — they are near spoilage): ${useSoonItems.join(", ")}\n` : ""}${learningLine ? `${learningLine}\n\n` : ""}ALLOWED ADDITIONS (only if not covered above): salt, black pepper, water. Any other spice, oil, sauce, or condiment MUST come from the SPICES & CONDIMENTS list. Do NOT invent other ingredients.
 
 OUTPUT REQUIREMENTS:
-1. Each ingredient list must be dominated by pantry items. List each ingredient with a SPECIFIC QUANTITY (e.g. "2 medium tomatoes", "200g paneer", "1 cup rice", "3 cloves garlic", "2 tbsp olive oil"). NEVER list an ingredient without a quantity.
+1. Select only pantry ingredients that fit the meal type. List each ingredient with a SPECIFIC QUANTITY (e.g. "2 medium tomatoes", "200g paneer", "1 cup rice", "3 cloves garlic", "2 tbsp olive oil"). NEVER list an ingredient without a quantity. Do NOT include pantry items that are unsuitable for the meal type.
 2. Steps must be concrete and cookable with the listed ingredients only.
 3. Match the cook capacity and meal type realistically.
 4. Target the servings count above.
@@ -284,7 +291,7 @@ Apply this micro-adjustment: "${adjustment}"
 HARD CONSTRAINTS (still apply):
 - Allergies (never include): ${allergiesLine}
 - Lifestyle (never violate): ${lifestyleLine}
-- Pantry items the recipe should be built from: ${pantryNames.join(", ") || "(empty)"}
+- Pantry inventory (choose from, do NOT use all): ${pantryNames.join(", ") || "(empty)"}
 - Spices & condiments available: ${spiceNames.join(", ") || "(none — only salt, pepper, water)"}
 - Allowed additions: salt, black pepper, water. Any other spice/condiment MUST come from the spices list.
 
