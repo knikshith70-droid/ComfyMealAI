@@ -1,6 +1,7 @@
 import { AuthProvider, useAuth } from "./lib/auth";
 import { I18nProvider } from "./lib/i18n";
 import { NavProvider } from "./lib/nav";
+import { InventoryProvider } from "./lib/inventory";
 import { AuthScreen } from "./components/AuthScreen";
 import { Onboarding } from "./components/Onboarding";
 import { AppShell } from "./components/AppShell";
@@ -30,9 +31,11 @@ export default function App() {
   return (
     <I18nProvider>
       <AuthProvider>
-        <NavProvider>
-          <Shell />
-        </NavProvider>
+        <InventoryProvider>
+          <NavProvider>
+            <Shell />
+          </NavProvider>
+        </InventoryProvider>
       </AuthProvider>
     </I18nProvider>
   );

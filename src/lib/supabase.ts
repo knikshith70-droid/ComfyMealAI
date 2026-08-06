@@ -42,6 +42,7 @@ export interface Profile {
   flavor_profile: string[];
   onboarded: boolean;
   language: string;
+  quantity_tracking_enabled?: boolean;
   created_at?: string;
   updated_at?: string;
 }

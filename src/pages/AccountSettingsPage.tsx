@@ -6,7 +6,7 @@ import { ChipSelector } from "../components/ChipSelector";
 import type { Profile } from "../lib/supabase";
 import {
   Settings, AlertCircle, Salad, Globe, Users, Target, Loader2, Check, Minus, Plus,
-  Utensils, Heart, Compass, ChefHat, Clock, Flame,
+  Utensils, Heart, Compass, ChefHat, Clock, Flame, Scale,
 } from "lucide-react";
 
 interface Props {
@@ -151,6 +151,23 @@ export function AccountSettingsPage({ profile }: Props) {
             color="sage"
             placeholder="e.g. Garlicky, Herby"
           />
+        </Section>
+
+        <Section icon={<Scale className="h-5 w-5" />} title={t("quantityTrackingTitle")} sub={t("quantityTrackingSub")}>
+          <button
+            type="button"
+            onClick={() => setDraft({ ...draft, quantity_tracking_enabled: !draft.quantity_tracking_enabled })}
+            className={`relative w-14 h-7 rounded-full transition ${draft.quantity_tracking_enabled ? "bg-sage-600" : "bg-cream-300"}`}
+            aria-label={t("quantityTrackingTitle")}
+          >
+            <span className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-cream-50 shadow transition ${draft.quantity_tracking_enabled ? "translate-x-7" : ""}`} />
+          </button>
+          <div className="mt-3 space-y-2 text-sm text-charcoal-700">
+            <div className="flex items-start gap-2">
+              <span className={`mt-1.5 h-1.5 w-1.5 rounded-full ${draft.quantity_tracking_enabled ? "bg-sage-500" : "bg-charcoal-400"}`} />
+              <span>{draft.quantity_tracking_enabled ? t("quantityTrackingOnDesc") : t("quantityTrackingOffDesc")}</span>
+            </div>
+          </div>
         </Section>
       </div>
 

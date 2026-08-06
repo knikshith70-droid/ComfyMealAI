@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "../lib/i18n";
+import { useInventory } from "../lib/inventory";
 import {
-  addPantryItemsWithDate, adjustRecipe, cookRecipe, fetchLatestSession,
-  fetchPantry, fetchSpices, fetchNutritionHistory, generateRecipe, saveSession, addNutritionHistory,
+  addPantryItemsWithDate, adjustRecipe, fetchLatestSession,
+  fetchNutritionHistory, generateRecipe, saveSession, addNutritionHistory,
 } from "../lib/api";
-import type { FlexSession, NutritionHistoryEntry, PantryItem, PantryFlag, Profile, Recipe, SpiceItem } from "../lib/supabase";
+import type { FlexSession, NutritionHistoryEntry, PantryFlag, Profile, Recipe } from "../lib/supabase";
 import { RecipeCard } from "../components/RecipeCard";
 import { ReceiptOCR } from "../components/ReceiptOCR";
 import { ChipSelector } from "../components/ChipSelector";
@@ -40,8 +41,7 @@ interface Props {
 
 export function GeneratePage({ profile, pendingAction, onConsumeAction }: Props) {
   const { t, lang } = useI18n();
-  const [pantry, setPantry] = useState<PantryItem[]>([]);
-  const [spices, setSpices] = useState<SpiceItem[]>([]);
+  const { pantry, spices, quantityTracking, cookRecipe: deductInventory, refresh } = useInventory();
   const [flex, setFlex] = useState<FlexState>(DEFAULT_FLEX);
   const [lastSession, setLastSession] = useState<FlexSession | null>(null);
   const [recentHistory, setRecentHistory] = useState<NutritionHistoryEntry[]>([]);
@@ -57,15 +57,11 @@ export function GeneratePage({ profile, pendingAction, onConsumeAction }: Props)
     let mounted = true;
     (async () => {
       try {
-        const [items, spicesList, last, history] = await Promise.all([
-          fetchPantry(),
-          fetchSpices(),
+        const [last, history] = await Promise.all([
           fetchLatestSession(),
           fetchNutritionHistory(30),
         ]);
         if (!mounted) return;
-        setPantry(items);
-        setSpices(spicesList);
         setLastSession(last);
         setRecentHistory(history);
         if (last) {
@@ -96,8 +92,8 @@ export function GeneratePage({ profile, pendingAction, onConsumeAction }: Props)
   const useSoonNames = useMemo(() => new Set(pantryFlags.filter((p) => p.use_soon).map((p) => p.name)), [pantryFlags]);
 
   const onReceiptConfirm = async (names: string[], loggedAt: string) => {
-    const added = await addPantryItemsWithDate(names, loggedAt);
-    setPantry((prev) => [...added, ...prev]);
+    await addPantryItemsWithDate(names, loggedAt);
+    await refresh();
   };
 
   const sameAsYesterday = () => {
@@ -186,9 +182,9 @@ export function GeneratePage({ profile, pendingAction, onConsumeAction }: Props)
     setCookingIndex(index);
     setError(null);
     try {
-      const { pantry: newPantry, spices: newSpices } = await cookRecipe(recipe.ingredient_details);
-      setPantry(newPantry);
-      setSpices(newSpices);
+      if (quantityTracking) {
+        await deductInventory(recipe.ingredient_details);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not update pantry after cooking.");
     } finally {
@@ -226,13 +222,7 @@ export function GeneratePage({ profile, pendingAction, onConsumeAction }: Props)
       <div className="grid lg:grid-cols-2 gap-5">
         {/* Pantry + Spices */}
         <div className="space-y-5">
-          <PantryInventory
-            pantry={pantry}
-            spices={spices}
-            onPantryChange={setPantry}
-            onSpicesChange={setSpices}
-            onError={(msg) => setError(msg)}
-          />
+          <PantryInventory compact />
           <div className="card p-5 sm:p-6">
             <div className="mb-3">
               <div className="label mb-2">Scan Receipt</div>

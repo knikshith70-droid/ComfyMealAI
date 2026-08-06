@@ -240,6 +240,19 @@ const en: Dict = {
   quantity: "Qty",
   regenerateThisMeal: "Regenerate this meal",
   regeneratingMeal: "Regenerating…",
+  cook: "Cook",
+  cooked: "Cooked!",
+  copyAll: "Copy all",
+  copied: "Copied!",
+  removeAll: "Remove all",
+  removeAllPantryTitle: "Remove all pantry items?",
+  removeAllPantryConfirm: "This will permanently remove all ingredients from your pantry. This cannot be undone.",
+  removeAllSpicesTitle: "Remove all spices?",
+  removeAllSpicesConfirm: "This will permanently remove all spices and condiments. This cannot be undone.",
+  quantityTrackingTitle: "Enable Quantity Tracking",
+  quantityTrackingSub: "When enabled, pantry items store quantities and cooking deducts them automatically. When disabled, the pantry works as a simple ingredient checklist.",
+  quantityTrackingOnDesc: "Each pantry and spice item stores quantity and unit. Recipes deduct used quantities automatically after cooking. Ingredients are removed when they reach zero.",
+  quantityTrackingOffDesc: "Pantry works as a simple ingredient checklist. Only ingredient names are stored. No quantities are deducted after cooking.",
 };
 
 const te: Dict = {
@@ -469,6 +482,19 @@ const te: Dict = {
   quantity: "పరిమాణం",
   regenerateThisMeal: "ఈ భోజనం మళ్లీ సృష్టించు",
   regeneratingMeal: "మళ్లీ సృష్టిస్తోంది…",
+  cook: "వండు",
+  cooked: "వండారు!",
+  copyAll: "అన్నీ కాపీ చేయి",
+  copied: "కాపీ అయింది!",
+  removeAll: "అన్నీ తొలగించు",
+  removeAllPantryTitle: "అన్ని పాంట్రీ ఐటమ్‌లను తొలగించాలా?",
+  removeAllPantryConfirm: "ఇది మీ పాంట్రీలోని అన్ని పదార్థాలను శాశ్వతంగా తొలగిస్తుంది. ఇది రద్దు చేయబడదు.",
+  removeAllSpicesTitle: "అన్ని సుగంధ ద్రవ్యాలను తొలగించాలా?",
+  removeAllSpicesConfirm: "ఇది అన్ని సుగంధ ద్రవ్యాలు మరియు సుగంధాలను శాశ్వతంగా తొలగిస్తుంది.",
+  quantityTrackingTitle: "పరిమాణ ట్రాకింగ్ ప్రారంభించు",
+  quantityTrackingSub: "ప్రారంభించినప్పుడు, పాంట్రీ ఐటమ్‌లు పరిమాణాలను నిల్వ చేస్తాయి. లేనప్పుడు, పాంట్రీ ఒక సాధారణ చెక్‌లిస్ట్‌గా పనిచేస్తుంది.",
+  quantityTrackingOnDesc: "పాంట్రీ మరియు సుగంధ ఐటమ్‌లు పరిమాణం మరియు యూనిట్‌ను నిల్వ చేస్తాయి. వంట తర్వాత పరిమాణాలు స్వయంచాలకంగా తగ్గిస్తాయి.",
+  quantityTrackingOffDesc: "పాంట్రీ ఒక సాధారణ చెక్‌లిస్ట్‌గా పనిచేస్తుంది. పేర్లు మాత్రమే నిల్వ చేయబడతాయి.",
 };
 
 const hi: Dict = {
@@ -698,6 +724,19 @@ const hi: Dict = {
   quantity: "मात्रा",
   regenerateThisMeal: "यह भोजन फिर से बनाएं",
   regeneratingMeal: "फिर से बन रहा है…",
+  cook: "पकाएं",
+  cooked: "पक गया!",
+  copyAll: "सभी कॉपी करें",
+  copied: "कॉपी हो गया!",
+  removeAll: "सभी हटाएं",
+  removeAllPantryTitle: "सभी पैंट्री आइटम हटाएं?",
+  removeAllPantryConfirm: "यह आपकी पैंट्री से सभी सामग्री को स्थायी रूप से हटा देगा। यह पूर्ववत नहीं किया जा सकता।",
+  removeAllSpicesTitle: "सभी मसाले हटाएं?",
+  removeAllSpicesConfirm: "यह सभी मसालों को स्थायी रूप से हटा देगा।",
+  quantityTrackingTitle: "मात्रा ट्रैकिंग सक्षम करें",
+  quantityTrackingSub: "सक्षम होने पर, पैंट्री आइटम मात्रा संग्रहीत करते हैं। अक्षम होने पर, पैंट्री एक साधारण चेकलिस्ट के रूप में काम करती है।",
+  quantityTrackingOnDesc: "प्रत्येक पैंट्री और मसाला आइटम मात्रा और इकाई संग्रहीत करता है। खाना बनाने के बाद मात्रा स्वचालित रूप से कटौती होती है।",
+  quantityTrackingOffDesc: "पैंट्री एक साधारण चेकलिस्ट के रूप में काम करती है। केवल नाम संग्रहीत होते हैं।",
 };
 
 const es: Dict = {
@@ -927,6 +966,19 @@ const es: Dict = {
   quantity: "Cant.",
   regenerateThisMeal: "Regenerar esta comida",
   regeneratingMeal: "Regenerando…",
+  cook: "Cocinar",
+  cooked: "¡Cocinado!",
+  copyAll: "Copiar todo",
+  copied: "¡Copiado!",
+  removeAll: "Eliminar todo",
+  removeAllPantryTitle: "¿Eliminar todos los artículos de la despensa?",
+  removeAllPantryConfirm: "Esto eliminará permanentemente todos los ingredientes de tu despensa. No se puede deshacer.",
+  removeAllSpicesTitle: "¿Eliminar todas las especias?",
+  removeAllSpicesConfirm: "Esto eliminará permanentemente todas las especias y condimentos.",
+  quantityTrackingTitle: "Habilitar seguimiento de cantidad",
+  quantityTrackingSub: "Cuando está habilitado, los elementos de la despensa almacenan cantidades. Cuando está deshabilitado, la despensa funciona como una lista de verificación simple.",
+  quantityTrackingOnDesc: "Cada elemento almacena cantidad y unidad. Las recetas deducen cantidades automáticamente después de cocinar.",
+  quantityTrackingOffDesc: "La despensa funciona como una lista de verificación simple. Solo se almacenan los nombres.",
 };
 
 const fr: Dict = {
@@ -1156,6 +1208,19 @@ const fr: Dict = {
   quantity: "Qté",
   regenerateThisMeal: "Régénérer ce repas",
   regeneratingMeal: "Régénération…",
+  cook: "Cuisiner",
+  cooked: "Cuisiné !",
+  copyAll: "Tout copier",
+  copied: "Copié !",
+  removeAll: "Tout supprimer",
+  removeAllPantryTitle: "Supprimer tous les articles du garde-manger ?",
+  removeAllPantryConfirm: "Cela supprimera définitivement tous les ingrédients de votre garde-manger. Cela ne peut pas être annulé.",
+  removeAllSpicesTitle: "Supprimer toutes les épices ?",
+  removeAllSpicesConfirm: "Cela supprimera définitivement toutes les épices et condiments.",
+  quantityTrackingTitle: "Activer le suivi des quantités",
+  quantityTrackingSub: "Lorsqu'il est activé, les éléments du garde-manger stockent les quantités. Lorsqu'il est désactivé, le garde-manger fonctionne comme une simple liste de contrôle.",
+  quantityTrackingOnDesc: "Chaque élément stocke la quantité et l'unité. Les recettes déduisent les quantités automatiquement après la cuisson.",
+  quantityTrackingOffDesc: "Le garde-manger fonctionne comme une simple liste de contrôle. Seuls les noms sont stockés.",
 };
 
 const ar: Dict = {
@@ -1385,6 +1450,19 @@ const ar: Dict = {
   quantity: "كمية",
   regenerateThisMeal: "إعادة توليد هذه الوجبة",
   regeneratingMeal: "جار إعادة التوليد…",
+  cook: "طبخ",
+  cooked: "تم الطبخ!",
+  copyAll: "نسخ الكل",
+  copied: "تم النسخ!",
+  removeAll: "حذف الكل",
+  removeAllPantryTitle: "حذف كل عناصر المخزن؟",
+  removeAllPantryConfirm: "سيؤدي هذا إلى حذف جميع المكونات من مخزنك نهائيًا. لا يمكن التراجع عن ذلك.",
+  removeAllSpicesTitle: "حذف جميع البهارات؟",
+  removeAllSpicesConfirm: "سيؤدي هذا إلى حذف جميع البهارات والتوابل نهائيًا.",
+  quantityTrackingTitle: "تمكين تتبع الكمية",
+  quantityTrackingSub: "عند التمكين، تخزن عناصر المخزن الكميات. عند التعطيل، يعمل المخزن كقائمة تحقق بسيطة.",
+  quantityTrackingOnDesc: "كل عنصر يخزن الكمية والوحدة. تخصم الوصفات الكميات تلقائيًا بعد الطبخ.",
+  quantityTrackingOffDesc: "يعمل المخزن كقائمة تحقق بسيطة. يتم تخزين الأسماء فقط.",
 };
 
 const DICTS: Record<Lang, Dict> = { en, te, hi, es, fr, ar };

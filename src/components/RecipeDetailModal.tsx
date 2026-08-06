@@ -6,7 +6,7 @@ import { useI18n } from "../lib/i18n";
 import { CompactRecipeImage } from "./RecipeImage";
 import { NutritionChart } from "./NutritionChart";
 import {
-  Bookmark, Check, Clock, Flame, Leaf, Loader2, X, Utensils, Users, RefreshCw,
+  Bookmark, Check, Clock, CookingPot, Flame, Leaf, Loader2, X, Utensils, Users, RefreshCw,
   ShoppingCart, Plus, AlertCircle, Microwave, Pencil, Soup, Wind,
 } from "lucide-react";
 
@@ -21,6 +21,7 @@ interface Props {
   profile?: Profile;
   flex?: { stock_level: string; cook_capacity: string; meal_type: string; comfort_score: number };
   language?: string;
+  onCook?: () => void;
 }
 
 /** Parse an ingredient string into { name, quantity } parts. */
@@ -32,7 +33,7 @@ function parseIngredient(ing: string): { quantity: string; name: string } {
   return { quantity: "", name: ing };
 }
 
-export function RecipeDetailModal({ recipe, pantry, spices, onClose, onRegenerate, regenerating, mealSlot, profile, flex, language }: Props) {
+export function RecipeDetailModal({ recipe, pantry, spices, onClose, onRegenerate, regenerating, mealSlot, profile, flex, language, onCook }: Props) {
   const { t } = useI18n();
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -40,6 +41,8 @@ export function RecipeDetailModal({ recipe, pantry, spices, onClose, onRegenerat
   const [addedToShopping, setAddedToShopping] = useState(false);
   const [ingredients, setIngredients] = useState<string[]>(recipe?.ingredients ?? []);
   const [adjusting, setAdjusting] = useState<string | null>(null);
+  const [cooking, setCooking] = useState(false);
+  const [cooked, setCooked] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
   const [customText, setCustomText] = useState("");
   const [adjustedRecipe, setAdjustedRecipe] = useState<Recipe | null>(null);
@@ -451,6 +454,25 @@ export function RecipeDetailModal({ recipe, pantry, spices, onClose, onRegenerat
               >
                 {addedToShopping ? <Check className="h-4 w-4 text-sage-700" /> : <ShoppingCart className="h-4 w-4" />}
                 {addedToShopping ? t("addedToList") : t("addAllToShopping")}
+              </button>
+            )}
+
+            {onCook && safeRecipe.ingredient_details?.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCooking(true);
+                  Promise.resolve(onCook()).finally(() => {
+                    setCooking(false);
+                    setCooked(true);
+                    setTimeout(() => setCooked(false), 2000);
+                  });
+                }}
+                disabled={cooking || cooked}
+                className="btn-clay"
+              >
+                {cooking ? <Loader2 className="h-4 w-4 animate-spin" /> : cooked ? <Check className="h-4 w-4 text-sage-700" /> : <CookingPot className="h-4 w-4" />}
+                {cooked ? t("cooked") : t("cook")}
               </button>
             )}
 

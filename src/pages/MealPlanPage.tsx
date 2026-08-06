@@ -1,12 +1,13 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useI18n } from "../lib/i18n";
-import { fetchPantry, fetchSpices, generateMealPlan, saveMealPlan } from "../lib/api";
+import { useInventory } from "../lib/inventory";
+import { generateMealPlan, saveMealPlan } from "../lib/api";
 import type { MealPlanDay, MealPlanSettings, PantryItem, Profile, Recipe, SpiceItem } from "../lib/supabase";
 import { RecipeDetailModal } from "../components/RecipeDetailModal";
 import { ChipSelector } from "../components/ChipSelector";
 import { PantryInventory } from "../components/PantryInventory";
 import {
-  AlertCircle, CalendarRange, Check, Clock, Loader2, Sparkles, Download, RefreshCw, Utensils, Wallet, Timer, Leaf,
+  AlertCircle, CalendarRange, Check, Clock, CookingPot, Loader2, Sparkles, Download, RefreshCw, Utensils, Wallet, Timer, Leaf,
 } from "lucide-react";
 
 type Duration = "1day" | "3day" | "1week" | "2week" | "1month";
@@ -17,31 +18,16 @@ interface Props {
 
 export function MealPlanPage({ profile }: Props) {
   const { t, lang } = useI18n();
-  const [pantry, setPantry] = useState<PantryItem[]>([]);
-  const [spices, setSpices] = useState<SpiceItem[]>([]);
+  const { pantry, spices, quantityTracking, cookRecipe: deductInventory } = useInventory();
   const [duration, setDuration] = useState<Duration>("3day");
   const [budget, setBudget] = useState("any");
   const [cookTime, setCookTime] = useState("any");
   const [plan, setPlan] = useState<MealPlanDay[] | null>(null);
-  const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [regenerating, setRegenerating] = useState<{ dayIndex: number; slot: string } | null>(null);
-
-  useEffect(() => {
-    let mounted = true;
-    Promise.all([fetchPantry(), fetchSpices()])
-      .then(([items, spicesList]) => {
-        if (!mounted) return;
-        setPantry(items);
-        setSpices(spicesList);
-      })
-      .catch((e) => { if (mounted) setError(e instanceof Error ? e.message : "Failed to load pantry."); })
-      .finally(() => { if (mounted) setLoading(false); });
-    return () => { mounted = false; };
-  }, []);
 
   const dietary: string[] = [
     ...profile.lifestyle,
@@ -139,14 +125,6 @@ export function MealPlanPage({ profile }: Props) {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-6 w-6 animate-spin text-sage-600" />
-      </div>
-    );
-  }
-
   return (
     <div className="px-5 sm:px-8 py-6 max-w-5xl mx-auto">
       <div className="mb-6">
@@ -212,14 +190,7 @@ export function MealPlanPage({ profile }: Props) {
           </div>
 
           {/* Pantry + Spices management */}
-          <PantryInventory
-            pantry={pantry}
-            spices={spices}
-            onPantryChange={setPantry}
-            onSpicesChange={setSpices}
-            onError={(msg) => setError(msg)}
-            compact
-          />
+          <PantryInventory compact />
 
           <button type="button" onClick={generate} disabled={generating} className="btn-clay w-full text-base py-3.5">
             {generating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
@@ -251,17 +222,17 @@ export function MealPlanPage({ profile }: Props) {
                 <span className="text-xs muted ml-1">{day.date}</span>
               </div>
               <div className="grid sm:grid-cols-2 gap-4">
-                <MealSlot day={day} slot="breakfast" label={t("breakfastLabel")} regenerating={regenerating} dayIndex={di} onRegenerate={regenerateMeal} pantry={pantry} spices={spices} profile={profile} lang={lang} />
-                <MealSlot day={day} slot="lunch" label={t("lunchLabel")} regenerating={regenerating} dayIndex={di} onRegenerate={regenerateMeal} pantry={pantry} spices={spices} profile={profile} lang={lang} />
-                <MealSlot day={day} slot="dinner" label={t("dinnerLabel")} regenerating={regenerating} dayIndex={di} onRegenerate={regenerateMeal} pantry={pantry} spices={spices} profile={profile} lang={lang} />
-                <MealSlot day={day} slot="snacks" label={t("snacksLabel")} regenerating={regenerating} dayIndex={di} onRegenerate={regenerateMeal} pantry={pantry} spices={spices} profile={profile} lang={lang} />
+                <MealSlot day={day} slot="breakfast" label={t("breakfastLabel")} regenerating={regenerating} dayIndex={di} onRegenerate={regenerateMeal} pantry={pantry} spices={spices} profile={profile} lang={lang} quantityTracking={quantityTracking} onCook={deductInventory} />
+                <MealSlot day={day} slot="lunch" label={t("lunchLabel")} regenerating={regenerating} dayIndex={di} onRegenerate={regenerateMeal} pantry={pantry} spices={spices} profile={profile} lang={lang} quantityTracking={quantityTracking} onCook={deductInventory} />
+                <MealSlot day={day} slot="dinner" label={t("dinnerLabel")} regenerating={regenerating} dayIndex={di} onRegenerate={regenerateMeal} pantry={pantry} spices={spices} profile={profile} lang={lang} quantityTracking={quantityTracking} onCook={deductInventory} />
+                <MealSlot day={day} slot="snacks" label={t("snacksLabel")} regenerating={regenerating} dayIndex={di} onRegenerate={regenerateMeal} pantry={pantry} spices={spices} profile={profile} lang={lang} quantityTracking={quantityTracking} onCook={deductInventory} />
               </div>
             </section>
           ))}
         </div>
       )}
 
-      {!plan && !generating && !loading && (
+      {!plan && !generating && (
         <div className="text-center py-16 rounded-2xl border border-dashed border-cream-300">
           <CalendarRange className="h-10 w-10 text-sage-400 mx-auto mb-3" />
           <h3 className="font-serif text-xl mb-1">{t("noPlanYet")}</h3>
@@ -281,7 +252,7 @@ function OptionChip({ value, current, set, label }: { value: string; current: st
 }
 
 function MealSlot({
-  day, slot, label, regenerating, dayIndex, onRegenerate, pantry, spices, profile, lang,
+  day, slot, label, regenerating, dayIndex, onRegenerate, pantry, spices, profile, lang, quantityTracking, onCook,
 }: {
   day: MealPlanDay;
   slot: "breakfast" | "lunch" | "dinner" | "snacks";
@@ -293,9 +264,13 @@ function MealSlot({
   spices: SpiceItem[];
   profile: Profile;
   lang: string;
+  quantityTracking: boolean;
+  onCook: (ingredientDetails: import("../lib/supabase").IngredientDetail[]) => Promise<void>;
 }) {
   const { t } = useI18n();
   const [showModal, setShowModal] = useState(false);
+  const [cooking, setCooking] = useState(false);
+  const [cooked, setCooked] = useState(false);
 
   // Safely get recipe with fallback
   const recipe: Recipe = day?.[slot] ?? {
@@ -327,6 +302,26 @@ function MealSlot({
           <div className="text-xs font-semibold uppercase tracking-wider text-sage-700">{label}</div>
           {hasValidData && (
             <div className="flex items-center gap-1">
+              {quantityTracking && recipe.ingredient_details?.length > 0 && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCooking(true);
+                    onCook(recipe.ingredient_details).finally(() => {
+                      setCooking(false);
+                      setCooked(true);
+                      setTimeout(() => setCooked(false), 2000);
+                    });
+                  }}
+                  disabled={cooking || cooked}
+                  className="h-7 w-7 inline-flex items-center justify-center rounded-full text-charcoal-700/50 hover:text-clay-700 hover:bg-clay-50 transition disabled:opacity-40"
+                  aria-label="Cook and deduct"
+                  title="Cook — deduct ingredients from pantry"
+                >
+                  {cooking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : cooked ? <Check className="h-3.5 w-3.5 text-sage-700" /> : <CookingPot className="h-3.5 w-3.5" />}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onRegenerate(dayIndex, slot); }}
@@ -369,6 +364,7 @@ function MealSlot({
           profile={profile}
           flex={{ stock_level: "average", cook_capacity: "standard", meal_type: slot, comfort_score: 50 }}
           language={lang}
+          onCook={quantityTracking && recipe.ingredient_details?.length ? () => onCook(recipe.ingredient_details) : undefined}
         />
       )}
     </>
