@@ -67,7 +67,7 @@ type SpeechRecognitionLike = {
   start: () => void;
   stop: () => void;
   abort: () => void;
-  onresult: ((event: { results: { 0: { transcript: string } } }) => void) | null;
+  onresult: ((event: { results: { 0: { 0: { transcript: string } } } }) => void) | null;
   onerror: (() => void) | null;
   onend: (() => void) | null;
   continuous: boolean;
@@ -109,7 +109,7 @@ export function VoicePantryInput({ onAdd, disabled }: Props) {
     rec.lang = "en-US";
 
     rec.onresult = (event) => {
-      const text = event.results[0].transcript;
+      const text = event.results[0][0].transcript;
       setTranscript(text);
       const items = parseSpokenText(text);
       setParsed(items);
