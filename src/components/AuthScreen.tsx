@@ -101,11 +101,17 @@ export function AuthScreen() {
         if (signInError) throw signInError;
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Authentication failed.");
+      const message = err instanceof Error ? err.message : "Authentication failed.";
+      if (!isSignUp && /invalid login credentials/i.test(message)) {
+        setError(
+          "Invalid login credentials. If you originally signed up with \"Continue with Google,\" use that button above instead — or tap \"Use a one-time email code instead\" below to sign in without a password.",
+        );
+      } else {
+        setError(message);
+      }
     } finally {
       setLoading(null);
     }
-  };
 
   // ── OTP auth ─────────────────────────────────────────────────────────────
 
