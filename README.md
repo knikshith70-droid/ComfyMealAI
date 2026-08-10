@@ -14,12 +14,12 @@ An AI-powered pantry-first meal planning platform that generates personalized re
 - 🔄 One-click AI micro-adjustments
 - 🌍 Multi-language support (6 languages)
 - 🔐 Google Sign-In & Email OTP Authentication
+- A voice assistant which can add ingredients using your voice.
 
 ## 🛠️ Built With
 
 - Bolt
 - React
-- Express.js
 - Supabase PostgreSQL
 - Groq API (Llama-3.3-70B)
 - Tesseract.js
