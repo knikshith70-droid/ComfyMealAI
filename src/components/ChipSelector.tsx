@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { addCustomOption, fetchOptions } from "../lib/api";
+import { addCustomOption, deleteCustomOption, fetchOptions } from "../lib/api";
 import { useI18n } from "../lib/i18n";
+import { useAuth } from "../lib/auth";
 import type { CustomOption, OptionCategory } from "../lib/supabase";
 import { Plus, Loader2, Check, X } from "lucide-react";
 
@@ -11,9 +12,9 @@ interface Props {
   color?: "sage" | "clay";
   placeholder?: string;
 }
-
 export function ChipSelector({ category, selected, onChange, color = "sage", placeholder = "Add your own" }: Props) {
   const { t } = useI18n();
+  const { user } = useAuth();
   const [options, setOptions] = useState<CustomOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -25,7 +26,7 @@ export function ChipSelector({ category, selected, onChange, color = "sage", pla
     let mounted = true;
     (async () => {
       try {
-        const opts = await fetchOptions(category);
+        const opts = await fetchOptions(category, user?.id);
         if (mounted) setOptions(opts);
       } catch (e) {
         if (mounted) setError(e instanceof Error ? e.message : "Failed to load options");
@@ -34,7 +35,18 @@ export function ChipSelector({ category, selected, onChange, color = "sage", pla
       }
     })();
     return () => { mounted = false; };
-  }, [category]);
+  }, [category, user?.id]);
+
+  const removeOption = async (opt: CustomOption, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await deleteCustomOption(opt.id);
+      setOptions((prev) => prev.filter((o) => o.id !== opt.id));
+      onChange(selected.filter((s) => s !== opt.value));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to remove option");
+    }
+  };
 
   const toggle = (value: string) => {
     const v = value.toLowerCase();
