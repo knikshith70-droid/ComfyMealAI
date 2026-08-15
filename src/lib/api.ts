@@ -21,16 +21,20 @@ export async function upsertProfile(profile: Profile): Promise<Profile> {
   return data as Profile;
 }
 
-export async function fetchOptions(category: string) {
-  const { data, error } = await supabase
+export async function fetchOptions(category: string, userId?: string) {
+  let query = supabase
     .from("custom_options")
     .select("id, category, value, created_by, created_at")
-    .eq("category", category)
-    .order("value", { ascending: true });
+    .eq("category", category);
+
+  query = userId
+    ? query.or(`created_by.is.null,created_by.eq.${userId}`)
+    : query.is("created_by", null);
+
+  const { data, error } = await query.order("value", { ascending: true });
   if (error) throw error;
   return data ?? [];
 }
-
 export async function addCustomOption(category: string, value: string) {
   const { data, error } = await supabase
     .from("custom_options")
