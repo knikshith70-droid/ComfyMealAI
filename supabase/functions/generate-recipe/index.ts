@@ -21,7 +21,7 @@ const SHELF_LIFE_DAYS: Record<string, number> = {
 
 const SHELF_LIFE_WARNING_DAYS = 2;
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL = "llama-3.3-70b-versatile";
+const GROQ_MODEL = "openai/gpt-oss-120b";
 
 const TIER_COUNTS: Record<string, number> = { standard: 2, plus: 3, pro: 5 };
 
