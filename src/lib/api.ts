@@ -54,7 +54,10 @@ export async function addCustomOption(category: string, value: string) {
   }
   return data;
 }
-
+export async function deleteCustomOption(id: string) {
+  const { error } = await supabase.from("custom_options").delete().eq("id", id);
+  if (error) throw error;
+}
 export async function fetchPantry(): Promise<PantryItem[]> {
   const { data, error } = await supabase
     .from("pantry_items")
