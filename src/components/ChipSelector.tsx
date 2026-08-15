@@ -53,22 +53,34 @@ export function ChipSelector({ category, selected, onChange, color = "sage", pla
     onChange(selected.includes(v) ? selected.filter((s) => s !== v) : [...selected, v]);
   };
 
-  const submitAdd = async () => {
+   const submitAdd = async () => {
     const v = draft.trim().toLowerCase();
     if (!v) return;
+
+    // Already visible to you (a preset or your own earlier addition)? Just select it, no network call.
+    const existingLocal = options.find((o) => o.value === v);
+    if (existingLocal) {
+      if (!selected.includes(v)) onChange([...selected, v]);
+      setDraft("");
+      setAdding(false);
+      return;
+    }
+
     setSaving(true);
     setError(null);
     try {
-      const created = await addCustomOption(category, v);
+      const created = await addCustomOption(category, v, user?.id);
       if (created) {
         setOptions((prev) => {
           if (prev.some((p) => p.value === (created as CustomOption).value)) return prev;
           return [...prev, created as CustomOption];
         });
         if (!selected.includes(v)) onChange([...selected, v]);
+        setDraft("");
+        setAdding(false);
+      } else {
+        setError("Someone already added this word — try a different one.");
       }
-      setDraft("");
-      setAdding(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to add option");
     } finally {
