@@ -106,7 +106,7 @@ export function Sidebar({ open, onClose }: Props) {
           })}
         </nav>
 
-        <div className="p-3 border-t border-cream-200">
+        <div className="p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-cream-200">
           <button
             type="button"
             onClick={handleSignOut}
