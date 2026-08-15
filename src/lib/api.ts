@@ -35,21 +35,23 @@ export async function fetchOptions(category: string, userId?: string) {
   if (error) throw error;
   return data ?? [];
 }
-export async function addCustomOption(category: string, value: string) {
+export async function addCustomOption(category: string, value: string, userId?: string) {
+  const v = value.trim().toLowerCase();
   const { data, error } = await supabase
     .from("custom_options")
-    .insert({ category, value: value.trim().toLowerCase() })
+    .insert({ category, value: v })
     .select("id, category, value, created_by, created_at")
     .maybeSingle();
   // ignore duplicate-violation errors (user re-adding an existing chip)
   if (error && error.code !== "23505") throw error;
   if (error && error.code === "23505") {
-    const { data: existing } = await supabase
+    let query = supabase
       .from("custom_options")
       .select("id, category, value, created_by, created_at")
       .eq("category", category)
-      .eq("value", value.trim().toLowerCase())
-      .maybeSingle();
+      .eq("value", v);
+    query = userId ? query.eq("created_by", userId) : query.is("created_by", null);
+    const { data: existing } = await query.maybeSingle();
     return existing;
   }
   return data;
