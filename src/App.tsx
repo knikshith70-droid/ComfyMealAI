@@ -23,7 +23,7 @@ function Shell() {
   }
 
   if (!user) return <AuthScreen />;
-  if (!profile || !profile.onboarded) return <Onboarding onDone={refreshProfile} />;
+ const [draft, setDraft] = useState<Profile>(base);
   return <AppShell profile={profile} />;
 }
 
