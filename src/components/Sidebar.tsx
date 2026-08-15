@@ -58,7 +58,7 @@ export function Sidebar({ open, onClose }: Props) {
         className={`fixed inset-0 z-30 bg-charcoal-900/30 backdrop-blur-[2px] transition-opacity duration-300 ${open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
       />
       <aside
-        className={`fixed top-0 right-0 z-40 h-screen w-[300px] sm:w-[320px] bg-cream-50 border-l border-cream-200 shadow-2xl flex flex-col transition-transform duration-300 ease-out ${open ? "translate-x-0" : "translate-x-full"}`}
+        className={`fixed top-0 right-0 z-40 h-dvh w-[300px] sm:w-[320px] bg-cream-50 border-l border-cream-200 shadow-2xl flex flex-col transition-transform duration-300 ease-out ${open ? "translate-x-0" : "translate-x-full"}`}
         aria-modal="true"
         role="dialog"
         aria-label="Navigation"
