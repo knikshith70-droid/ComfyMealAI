@@ -88,15 +88,25 @@ export function ChipSelector({ category, selected, onChange, color = "sage", pla
         <div className="flex flex-wrap gap-2">
           {options.map((opt) => {
             const on = selected.includes(opt.value);
+            const ownedByMe = opt.created_by === user?.id;
             return (
               <button
                 key={opt.id}
                 type="button"
                 onClick={() => toggle(opt.value)}
-                className={`chip ${on ? onCls : "chip-off"}`}
+                className={`chip ${on ? onCls : "chip-off"} group relative`}
               >
                 {on && <Check className="h-3.5 w-3.5" />}
                 {capitalize(opt.value)}
+                {ownedByMe && (
+                  <span
+                    role="button"
+                    onClick={(e) => removeOption(opt, e)}
+                    className="ml-1 opacity-60 hover:opacity-100"
+                  >
+                    <X className="h-3 w-3" />
+                  </span>
+                )}
               </button>
             );
           })}
