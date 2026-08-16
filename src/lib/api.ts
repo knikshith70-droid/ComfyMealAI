@@ -35,13 +35,12 @@ export async function fetchOptions(category: string, userId?: string) {
   if (error) throw error;
   return data ?? [];
 }
-export async function addCustomOption(category: string, value: string, userId?: string) {
+  export async function addCustomOption(category: string, value: string, userId?: string) {
   const v = value.trim().toLowerCase();
+  if (!userId) throw new Error("You must be signed in to add a custom option.");
   const { data, error } = await supabase
     .from("custom_options")
-    .insert({ category, value: v })
-    .select("id, category, value, created_by, created_at")
-    .maybeSingle();
+    .insert({ category, value: v, created_by: userId })
   // ignore duplicate-violation errors (user re-adding an existing chip)
   if (error && error.code !== "23505") throw error;
   if (error && error.code === "23505") {
