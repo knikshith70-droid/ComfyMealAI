@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL = "openai/gpt-oss-120b";
+const GROQ_MODEL = "openai/gpt-oss-20b";
 
 const LANGUAGE_NAMES: Record<string, string> = {
   en: "English",
