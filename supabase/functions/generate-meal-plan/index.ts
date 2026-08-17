@@ -228,45 +228,50 @@ async function callGroq(system: string, user: string, maxTokens: number) {
     throw new Error("GROQ_API_KEY is not configured on the server.");
   }
 
-  const res = await fetch(GROQ_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-      temperature: 0.5,
-      max_tokens: maxTokens,
-      response_format: { type: "json_object" },
-    }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Groq API error ${res.status}: ${text.slice(0, 300)}`);
+async function callGroq(system: string, user: string, maxTokens: number) {
+  const apiKey = Deno.env.get("GROQ_API_KEY");
+  if (!apiKey) {
+    throw new Error("GROQ_API_KEY is not configured on the server.");
   }
 
-  const data = await res.json();
-  const content: string | undefined = data?.choices?.[0]?.message?.content;
-  if (!content) {
-    throw new Error("Groq returned an empty response.");
+  const MAX_ATTEMPTS = 3;
+  let res: Response | undefined;
+  let lastErrorText = "";
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    res = await fetch(GROQ_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+        temperature: 0.4,
+        max_tokens: maxTokens,
+        response_format: { type: "json_object" },
+      }),
+    });
+
+    if (res.ok) break;
+
+    lastErrorText = await res.text().catch(() => "");
+    const isJsonValidationFailure = lastErrorText.includes("json_validate_failed");
+    const isLastAttempt = attempt === MAX_ATTEMPTS;
+
+    // Only retry on the known gpt-oss JSON-validation flake - any other error fails immediately.
+    if (!isJsonValidationFailure || isLastAttempt) {
+      throw new Error(`Groq API error ${res.status}: ${lastErrorText.slice(0, 300)}`);
+    }
   }
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(content);
-  } catch {
-    const match = content.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("Could not parse JSON from Groq response.");
-    parsed = JSON.parse(match[0]);
+  if (!res || !res.ok) {
+    throw new Error(`Groq API error: ${lastErrorText.slice(0, 300)}`);
   }
-  return parsed;
-}
 
 function normalizeRecipe(r: Record<string, unknown>): RecipeShape {
   return {
