@@ -391,7 +391,7 @@ Deno.serve(async (req: Request) => {
 
     const days = DURATION_DAYS[body.duration] ?? 1;
     const { system, user } = buildPrompt(body, days);
-    const maxTokens = Math.min(16000, 2500 + days * 800);
+    const maxTokens = Math.min(32000, 2500 + days * 800);
     const parsed = await callGroq(system, user, maxTokens);
     const plan = repairPlan(normalizePlan(parsed), days);
 
